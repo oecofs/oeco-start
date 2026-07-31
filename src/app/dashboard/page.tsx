@@ -190,3 +190,102 @@ export default function DashboardPage() {
                     Conciliação
                   </span>
                   <span
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      reconcileProgress === 100
+                        ? "bg-green-100 text-green-700"
+                        : reconcileProgress > 0
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {reconcileProgress === 100
+                      ? "Completa"
+                      : reconcileProgress > 0
+                      ? "Em andamento"
+                      : "Pendente"}
+                  </span>
+                </div>
+                <p className="text-2xl font-bold text-gray-800">
+                  {reconciledCount}
+                  <span className="text-gray-400 text-lg font-normal">
+                    {" "}
+                    / {transactionsCount}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  transações conciliadas
+                </p>
+
+                {/* Barra de progresso */}
+                <div className="mt-3 w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      reconcileProgress === 100
+                        ? "bg-green-500"
+                        : "bg-primary"
+                    }`}
+                    style={{ width: `${reconcileProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1 text-right">
+                  {reconcileProgress}%
+                </p>
+              </div>
+            </div>
+
+            {/* Link para transações */}
+            {transactionsCount > 0 && (
+              <Link
+                href="/transactions"
+                className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      Ver transações
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {transactionsCount - reconciledCount} pendentes de
+                      conciliação
+                    </p>
+                  </div>
+                  <span className="text-gray-400">→</span>
+                </div>
+              </Link>
+            )}
+
+            {/* Empty state — sem transações */}
+            {transactionsCount === 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                <span className="text-4xl">📊</span>
+                <p className="text-gray-500 mt-3 mb-1">
+                  Nenhuma transação neste mês
+                </p>
+                <p className="text-sm text-gray-400 mb-4">
+                  Suba o extrato bancário para começar a conciliação
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Floating button — Subir extrato (mobile) */}
+      <Link
+        href="/upload"
+        className="md:hidden fixed bottom-20 right-4 bg-primary text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:bg-primary-dark transition-colors z-40"
+      >
+        <span className="text-2xl">+</span>
+      </Link>
+
+      {/* Floating button — Subir extrato (desktop) */}
+      <Link
+        href="/upload"
+        className="hidden md:flex fixed bottom-6 right-6 bg-primary text-white px-4 py-2.5 rounded-lg shadow-lg hover:bg-primary-dark transition-colors items-center gap-2 z-40"
+      >
+        <span className="text-lg">📁</span>
+        <span className="font-medium">Subir extrato</span>
+      </Link>
+    </Navigation>
+  );
+}
