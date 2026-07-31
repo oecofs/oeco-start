@@ -95,11 +95,34 @@ export default function TransactionsPage() {
     return categories.filter((c) => c.parent_id === parentId);
   }
 
-  // Update category on a transaction
+   // Update category on a transaction
   async function handleCategoryChange(
     transactionId: string,
     categoryId: string | null
   ) {
+    // Verifica se a categoria selecionada tem subcategorias
+    let isReconciled = false;
+
+    if (categoryId) {
+      const selectedCategory = categories.find((c) => c.id === categoryId);
+      const isSub = selectedCategory?.parent_id !== null && selectedCategory?.parent_id !== undefined;
+
+      if (isSub) {
+        // Selecionou uma subcategoria → conciliada
+        isReconciled = true;
+      } else {
+        // Selecionou uma categoria pai → verifica se tem filhas
+        const hasSubs = categories.some((c) => c.parent_id === categoryId);
+        if (!hasSubs) {
+          // Não tem subcategorias → só a categoria basta
+          isReconciled = true;
+        } else {
+          // Tem subcategorias → precisa selecionar uma
+          isReconciled = false;
+        }
+      }
+    }
+
     // Otimistic update
     setTransactions((prev) =>
       prev.map((t) =>
@@ -107,24 +130,20 @@ export default function TransactionsPage() {
           ? {
               ...t,
               category_id: categoryId,
-              is_reconciled: categoryId !== null,
+              is_reconciled: isReconciled,
             }
           : t
       )
     );
 
-    // Se limpou a categoria, também limpa o cost_center? Não — mantém.
-    const updates: {
-      category_id: string | null;
-      is_reconciled: boolean;
-    } = {
+    const updates = {
       category_id: categoryId,
-      is_reconciled: categoryId !== null,
+      is_reconciled: isReconciled,
     };
 
     await supabase.from("transactions").update(updates).eq("id", transactionId);
   }
-
+  
   // Update cost center on a transaction
   async function handleCostCenterChange(
     transactionId: string,
