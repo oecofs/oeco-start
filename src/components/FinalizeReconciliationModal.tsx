@@ -101,23 +101,80 @@ export default function FinalizeReconciliationModal({
     setErrorMsg("");
 
     try {
-      // 1. Montar payload do webhook
+      // 1. Buscar nome da empresa
+      const { data: settingsData } = await supabase
+        .from("settings")
+        .select("company_name")
+        .limit(1)
+        .single();
+
+      // 2. Montar by_category (agrupar transações por categoria)
+      const byCategoryMap = new Map<string, { total: number; count: number; cost_center: string | null }>();
+
+      for (const t of transactions) {
+        const catName = getCategoryName(t.category_id);
+        const key = catName;
+        if (!byCategoryMap.has(key)) {
+          byCategoryMap.set(key, { total: 0, count: 0, cost_center: t.cost_center || null });
+        }
+        const entry = byCategoryMap.get(key)!;
+        entry.total += Math.abs(Number(t.amount));
+        entry.count += 1;
+      }
+
+      const byCategory = Array.from(byCategoryMap.entries()).map(([category, data]) => ({
+        category,
+        cost_center: data.cost_center,
+        total: data.total,
+        count: data.count,
+      }));
+
+      // 3. Calcular receivables_summary detalhado
+      const today = new Date().toISOString().split("T")[0];
+      const weekFromNow = new Date();
+      weekFromNow.setDate(weekFromNow.getDate() + 7);
+      const weekFromNowStr = weekFromNow.toISOString().split("T")[0];
+
+      const allReceivables = receivables.filter((r) => r.month_ref === monthRef);
+      const pendingReceivables = allReceivables.filter((r) => r.status !== "received");
+      const overdueItems = pendingReceivables
+        .filter((r) => r.due_date < today)
+        .map((r) => {
+          const dueDate = new Date(r.due_date);
+          const todayDate = new Date(today);
+          const diffTime = todayDate.getTime() - dueDate.getTime();
+          const daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return {
+            client_name: r.client_name,
+            amount: Number(r.amount),
+            due_date: r.due_date,
+            days_overdue: daysOverdue,
+          };
+        });
+
+      const dueThisWeek = pendingReceivables
+        .filter((r) => r.due_date >= today && r.due_date <= weekFromNowStr)
+        .reduce((sum, r) => sum + Number(r.amount), 0);
+
+      const totalPendingReceivables = pendingReceivables.reduce(
+        (sum, r) => sum + Number(r.amount), 0
+      );
+      const totalOverdueReceivables = overdueItems.reduce(
+        (sum, r) => sum + r.amount, 0
+      );
+  
+      // 4. Montar payload completo do webhook
       const webhookPayload = {
-        event: "reconciliation_finalized",
+        company_name: settingsData?.company_name || "Empresa",
         month_ref: monthRef,
-        month_label: formatMonthLabel(monthRef),
-        finalized_at: new Date().toISOString(),
+        sent_at: new Date().toISOString(),
         summary: {
           total_income: totalIncome,
           total_expense: totalExpense,
           balance: balance,
           transactions_count: transactions.length,
-          received_receivables_count: receivedReceivables.length,
-          received_receivables_total: receivedReceivables.reduce(
-            (sum, r) => sum + Number(r.amount),
-            0
-          ),
         },
+        by_category: byCategory,
         transactions: transactions.map((t) => ({
           date: t.date,
           description: t.description,
@@ -125,15 +182,46 @@ export default function FinalizeReconciliationModal({
           category: getCategoryName(t.category_id),
           cost_center: t.cost_center || null,
         })),
-        receivables: receivedReceivables.map((r) => ({
+        receivables_summary: {
+          total_pending: totalPendingReceivables,
+          total_overdue: totalOverdueReceivables,
+          overdue_items: overdueItems,
+          due_this_week: dueThisWeek,
+        },
+        receivables: allReceivables.map((r) => ({
           client_name: r.client_name,
           description: r.description,
           amount: r.amount,
           due_date: r.due_date,
+          status: r.status,
+          is_recurring: r.is_recurring,
         })),
       };
 
-      // 2. Enviar webhook
+      // Verificar se o mês já foi enviado
+      const { data: existingRecon } = await supabase
+        .from("reconciliation_status")
+        .select("id, status")
+        .eq("month_ref", monthRef)
+        .limit(1)
+        .single();
+
+      if (existingRecon && existingRecon.status === "sent_to_cfo") {
+        const confirmReopen = confirm(
+          "Este mês já foi enviado ao CFO. Deseja reabrir e reenviar?"
+        );
+        if (!confirmReopen) {
+          setStep("summary");
+          return;
+        }
+        // Reabrir: mudar status para in_progress
+        await supabase
+          .from("reconciliation_status")
+          .update({ status: "in_progress" })
+          .eq("id", existingRecon.id);
+      }
+  
+      // 5. Enviar webhook
       let webhookSuccess = false;
       let webhookError = "";
 
@@ -158,31 +246,26 @@ export default function FinalizeReconciliationModal({
         webhookError = "Webhook não configurado.";
       }
 
-      // 3. Atualizar/criar reconciliation_status
-      const { data: existingStatus } = await supabase
-        .from("reconciliation_status")
-        .select("id")
-        .eq("month_ref", monthRef)
-        .limit(1)
-        .single();
-
-      if (existingStatus) {
+      // 6. Atualizar/criar reconciliation_status como sent_to_cfo
+      if (existingRecon) {
         await supabase
           .from("reconciliation_status")
           .update({
-            status: "finalized",
+            status: "sent_to_cfo",
             finalized_at: new Date().toISOString(),
+            sent_at: new Date().toISOString(),
           })
-          .eq("id", existingStatus.id);
+          .eq("id", existingRecon.id);
       } else {
         await supabase.from("reconciliation_status").insert({
           month_ref: monthRef,
-          status: "finalized",
+          status: "sent_to_cfo",
           finalized_at: new Date().toISOString(),
+          sent_at: new Date().toISOString(),
         });
       }
 
-      // 4. Gerar recebíveis recorrentes do próximo mês
+      // 7. Gerar recebíveis recorrentes do próximo mês
       const recurringReceivables = receivables.filter(
         (r) => r.is_recurring && r.recurring_day
       );
@@ -242,7 +325,7 @@ export default function FinalizeReconciliationModal({
         }
       }
 
-      // 5. Done!
+      // 8. Done!
       setStep("done");
     } catch (err) {
       setErrorMsg("Erro inesperado ao finalizar conciliação.");
