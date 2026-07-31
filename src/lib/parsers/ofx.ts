@@ -15,7 +15,44 @@ export type ParsedTransaction = {
  * Faz o parse de um arquivo OFX em texto.
  * Retorna array de transações normalizadas.
  */
-export function parseOFX(content: string): ParsedTransaction[] {
+/**
+ * Detecta e converte encoding para UTF-8
+ * Bancos brasileiros podem exportar OFX em ISO-8859-1 ou Windows-1252
+ */
+export function detectAndConvertEncoding(buffer: ArrayBuffer): string {
+  // Tenta UTF-8 primeiro
+  const utf8Try = new TextDecoder("utf-8").decode(buffer);
+
+  // Se não tem caracteres de substituição (�), é UTF-8 válido
+  if (!utf8Try.includes("\uFFFD")) {
+    return utf8Try;
+  }
+
+  // Tenta ISO-8859-1 (Latin-1)
+  try {
+    const latin1Try = new TextDecoder("iso-8859-1").decode(buffer);
+    if (!latin1Try.includes("\uFFFD")) {
+      return latin1Try;
+    }
+  } catch {
+    // TextDecoder pode não suportar iso-8859-1 em alguns ambientes
+  }
+
+  // Tenta Windows-1252
+  try {
+    const win1252Try = new TextDecoder("windows-1252").decode(buffer);
+    return win1252Try;
+  } catch {
+    // Fallback: retorna UTF-8 mesmo com caracteres de substituição
+    return utf8Try;
+  }
+}
+
+export function parseOFX(content: string | ArrayBuffer): ParsedTransaction[] {
+  // Se for ArrayBuffer, converte com detecção de encoding
+  if (content instanceof ArrayBuffer) {
+    content = detectAndConvertEncoding(content);
+  }
   // Validar se é OFX
   if (!content.includes("<OFX") && !content.includes("<ofx")) {
     throw new Error("Arquivo OFX inválido. Verifique se você exportou o extrato no formato correto.");
