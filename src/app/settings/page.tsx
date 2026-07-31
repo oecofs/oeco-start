@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getWhiteLabelConfig } from "@/lib/whitelabel";
 import Navigation from "@/components/Navigation";
 import CategoriesManager from "@/components/CategoriesManager";
+import CostCentersManager from "@/components/CostCentersManager";
 
 export default function SettingsPage() {
   const wl = getWhiteLabelConfig();
@@ -150,6 +151,9 @@ export default function SettingsPage() {
 
         {/* Categories management */}
         <CategoriesManager />
+
+        {/* Cost centers management */}
+        <CostCentersManager />
 
         {/* Logout */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
