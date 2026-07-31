@@ -42,6 +42,7 @@ export default function ReceivablesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState<"all" | "pending" | "overdue" | "received">("all");
   const [success, setSuccess] = useState("");
 
   const emptyForm: FormData = {
@@ -223,6 +224,24 @@ export default function ReceivablesPage() {
     fetchReceivables();
   }
 
+  // Stop recurrence
+  async function handleStopRecurrence(receivable: Receivable) {
+    if (!confirm(`Parar a recorrência de "${receivable.description}"? Este recebível não será gerado nos próximos meses.`)) return;
+
+    const { error } = await supabase
+      .from("receivables")
+      .update({ is_active: false })
+      .eq("id", receivable.id);
+
+    if (error) {
+      setError("Erro ao parar recorrência.");
+      return;
+    }
+
+    setSuccess("Recorrência parada. Este recebível não será mais gerado automaticamente.");
+    fetchReceivables();
+  }
+  
   // Delete
   async function handleDelete(receivable: Receivable) {
     if (!confirm(`Excluir o recebível "${receivable.description}"?`)) return;
@@ -255,6 +274,14 @@ export default function ReceivablesPage() {
   }
 
   // Summary
+    // Aplicar filtro
+  const filteredReceivables = receivables.filter((r) => {
+    if (filter === "all") return true;
+    if (filter === "pending") return r.status === "pending";
+    if (filter === "overdue") return r.status === "overdue";
+    if (filter === "received") return r.status === "received";
+    return true;
+  });
   const totalPending = receivables
     .filter((r) => r.status !== "received")
     .reduce((sum, r) => sum + Number(r.amount), 0);
@@ -315,7 +342,30 @@ export default function ReceivablesPage() {
             </div>
           </div>
         )}
-
+        {/* Filtros */}
+        {!loading && receivables.length > 0 && (
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+            {([
+              { key: "all", label: "Todos" },
+              { key: "pending", label: "Pendentes" },
+              { key: "overdue", label: "Em atraso" },
+              { key: "received", label: "Recebidos" },
+            ] as const).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                  filter === f.key
+                    ? "bg-primary text-white"
+                    : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+        
         {/* Loading */}
         {loading && (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
@@ -343,7 +393,7 @@ export default function ReceivablesPage() {
         {/* Receivables list */}
         {!loading && receivables.length > 0 && (
           <div className="space-y-2">
-            {receivables.map((r) => (
+            {filteredReceivables.map((r) => (
               <div
                 key={r.id}
                 className={`bg-white rounded-xl border p-3 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-2 ${
@@ -414,6 +464,14 @@ export default function ReceivablesPage() {
                         ↩ Reverter
                       </button>
                     )}
+                    {r.is_recurring && r.status !== "received" && (
+                      <button
+                        onClick={() => handleStopRecurrence(r)}
+                        className="text-xs text-orange-500 hover:bg-orange-50 px-2 py-1 rounded whitespace-nowrap"
+                      >
+                        ⏹ Parar recorrência
+                      </button>
+                    )}                    
                     <button
                       onClick={() => handleEdit(r)}
                       className="text-xs text-gray-500 hover:bg-gray-100 px-2 py-1 rounded"
