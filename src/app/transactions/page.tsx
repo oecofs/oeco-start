@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Navigation from "@/components/Navigation";
 import MonthSelector from "@/components/MonthSelector";
+import FinalizeReconciliationModal from "@/components/FinalizeReconciliationModal";
 
 type Category = {
   id: string;
@@ -38,6 +39,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [receivables, setReceivables] = useState<any[]>([]);  
   const [editDescription, setEditDescription] = useState("");
 
   // Fetch categories
@@ -69,6 +72,13 @@ export default function TransactionsPage() {
       .order("date", { ascending: false });
 
     setTransactions(data || []);
+      // Buscar recebíveis do mês para o modal
+      const { data: recData } = await supabase
+        .from("receivables")
+        .select("*")
+        .eq("month_ref", selectedMonth)
+        .eq("is_active", true);
+      setReceivables(recData || []);
     setLoading(false);
   }, [supabase, selectedMonth]);
 
@@ -228,8 +238,7 @@ export default function TransactionsPage() {
             </p>
             <button
               className="px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors text-sm whitespace-nowrap"
-              // O modal será implementado na Etapa 11
-              onClick={() => alert("O modal de finalização será implementado na Etapa 11.")}
+              onClick={() => setShowFinalizeModal(true)}
             >
               Finalizar conciliação
             </button>
@@ -424,6 +433,15 @@ export default function TransactionsPage() {
             </div>
           </div>
         )}
+        {/* Modal de finalização */}
+        <FinalizeReconciliationModal
+          open={showFinalizeModal}
+          onClose={() => setShowFinalizeModal(false)}
+          monthRef={selectedMonth}
+          transactions={transactions}
+          categories={categories}
+          receivables={receivables}
+        />
       </div>
     </Navigation>
   );
