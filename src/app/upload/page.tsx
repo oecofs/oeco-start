@@ -66,14 +66,14 @@ export default function UploadPage() {
     setLoading(true);
 
     try {
-      const text = await file.text();
+      const buffer = await file.arrayBuffer();
 
       if (extension === "ofx") {
-        const parsed = parseOFX(text);
+        const parsed = parseOFX(buffer);
         setTransactions(parsed);
       } else {
         // CSV parser
-        const result = parseCSV(text);
+        const result = parseCSV(new TextDecoder("utf-8").decode(buffer));
 
         if (result.needsManualMapping) {
           // Precisa de mapeamento manual
