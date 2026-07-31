@@ -34,7 +34,7 @@ export default function TransactionsPage() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [costCenters, setCostCenters] = useState<string[]>([]);
+  const [costCenters, setCostCenters] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,9 +49,13 @@ export default function TransactionsPage() {
 
     setCategories(data || []);
 
-    // Extrai centros de custo únicos
-    const centers = [...new Set((data || []).map((c) => c.cost_center).filter(Boolean))] as string[];
-    setCostCenters(centers);
+    // Busca centros de custo da tabela dedicada
+    const { data: ccData } = await supabase
+      .from("cost_centers")
+      .select("id, name")
+      .order("name");
+
+    setCostCenters(ccData || []);
   }, [supabase]);
 
   // Fetch transactions for selected month
@@ -382,8 +386,8 @@ export default function TransactionsPage() {
                           >
                             <option value="">—</option>
                             {costCenters.map((cc) => (
-                              <option key={cc} value={cc}>
-                                {cc}
+                              <option key={cc.id} value={cc.name}>
+                                {cc.name}
                               </option>
                             ))}
                           </select>
