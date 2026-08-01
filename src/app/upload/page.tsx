@@ -117,7 +117,6 @@ export default function UploadPage() {
     setError("");
 
     try {
-      // Remover duplicatas de month_ref sem usar Set
       const allMonthRefs = transactions.map((t) => t.month_ref);
       const monthRefs = allMonthRefs.filter((v, i, a) => a.indexOf(v) === i);
 
@@ -127,7 +126,6 @@ export default function UploadPage() {
         .in("month_ref", monthRefs)
         .not("fitid", "is", null);
 
-      // Usar array simples em vez de Set
       const existingFitids = (existing || []).map((t) => t.fitid);
 
       const newTransactions = transactions.filter(
@@ -137,9 +135,7 @@ export default function UploadPage() {
       const skipped = transactions.length - newTransactions.length;
 
       if (newTransactions.length === 0) {
-        setSuccess(
-          `Todas as ${transactions.length} transações já foram importadas anteriormente.`
-        );
+        setSuccess("Todas as " + transactions.length + " transações já foram importadas anteriormente.");
         setImporting(false);
         return;
       }
@@ -164,7 +160,7 @@ export default function UploadPage() {
       }
 
       setSuccess(
-        `${newTransactions.length} transações importadas!${skipped > 0 ? ` ${skipped} duplicadas ignoradas.` : ""}`
+        newTransactions.length + " transações importadas!" + (skipped > 0 ? " " + skipped + " duplicadas ignoradas." : "")
       );
 
       setTimeout(() => {
@@ -185,26 +181,19 @@ export default function UploadPage() {
     setNeedsManualMapping(false);
     setCsvHeaders([]);
     setCsvContent("");
-    setManualMapping({
-      dateColumn: null,
-      descriptionColumn: null,
-      amountColumn: null,
-    });
+    setManualMapping({ dateColumn: null, descriptionColumn: null, amountColumn: null });
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   }
 
   function formatCurrency(value: number): string {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   }
 
   function formatDate(dateStr: string): string {
-    const [year, month, day] = dateStr.split("-");
-    return `${day}/${month}/${year}`;
+    const parts = dateStr.split("-");
+    return parts[2] + "/" + parts[1] + "/" + parts[0];
   }
 
   return (
@@ -213,24 +202,14 @@ export default function UploadPage() {
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Subir Extrato</h1>
 
         {error && (
-          <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-            {error}
-          </div>
+          <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</div>
         )}
 
         {success && (
-          <div className="mb-4 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-            {success}
-          </div>
+          <div className="mb-4 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-4 py-3">{success}</div>
         )}
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".ofx,.csv"
-          onChange={handleFileChange}
-          className="hidden"
-        />
+        <input ref={fileInputRef} type="file" accept=".ofx,.csv" onChange={handleFileChange} className="hidden" />
 
         {transactions.length === 0 && !loading && !needsManualMapping && (
           <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
@@ -240,12 +219,8 @@ export default function UploadPage() {
             >
               <div className="flex flex-col items-center gap-2">
                 <span className="text-4xl">📁</span>
-                <span className="text-gray-600 font-medium">
-                  Clique para selecionar um arquivo
-                </span>
-                <span className="text-sm text-gray-400">
-                  Formatos aceitos: .ofx ou .csv (máx. 5MB)
-                </span>
+                <span className="text-gray-600 font-medium">Clique para selecionar um arquivo</span>
+                <span className="text-sm text-gray-400">Formatos aceitos: .ofx ou .csv (máx. 5MB)</span>
               </div>
             </button>
           </div>
@@ -259,90 +234,81 @@ export default function UploadPage() {
 
         {needsManualMapping && !loading && (
           <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">
-              Mapear colunas
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Mapear colunas</h2>
             <p className="text-sm text-gray-500 mb-4">
-              Não foi possível detectar as colunas automaticamente. Selecione
-              qual coluna corresponde a cada campo:
+              Não foi possível detectar as colunas automaticamente. Selecione qual coluna corresponde a cada campo:
             </p>
             <p className="text-xs text-gray-400 mb-4">
-              Colunas encontradas:{" "}
-              {csvHeaders.map((h, i) => `[${i}] ${h}`).join("  |  ")}
+              Colunas encontradas: {csvHeaders.map(function(h, i) { return "[" + i + "] " + h; }).join("  |  ")}
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Coluna de Data
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Coluna de Data</label>
                 <select
                   value={manualMapping.dateColumn ?? ""}
-                  onChange={(e) =>
+                  onChange={function(e) {
                     setManualMapping({
                       ...manualMapping,
-                      dateColumn:
-                        e.target.value === "" ? null : parseInt(e.target.value),
-                    })
-                  }
+                      dateColumn: e.target.value === "" ? null : parseInt(e.target.value),
+                    });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Selecione...</option>
-                  {csvHeaders.map((header, index) => (
-                    <option key={index} value={index}>
-                      [{index}] {header}
-                    </option>
-                  ))}
+                  {csvHeaders.map(function(header, index) {
+                    return (
+                      <option key={index} value={index}>
+                        [{index}] {header}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Coluna de Descrição
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Coluna de Descrição</label>
                 <select
                   value={manualMapping.descriptionColumn ?? ""}
-                  onChange={(e) =>
+                  onChange={function(e) {
                     setManualMapping({
                       ...manualMapping,
-                      descriptionColumn:
-                        e.target.value === ""
-                          ? null
-                          : parseInt(e.target.value),
-                    })
-                  }
+                      descriptionColumn: e.target.value === "" ? null : parseInt(e.target.value),
+                    });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Selecione...</option>
-                  {csvHeaders.map((header, index) => (
-                    <option key={index} value={index}>
-                      [{index}] {header}
-                    </option>
-                  ))}
+                  {csvHeaders.map(function(header, index) {
+                    return (
+                      <option key={index} value={index}>
+                        [{index}] {header}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Coluna de Valor
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Coluna de Valor</label>
                 <select
                   value={manualMapping.amountColumn ?? ""}
-                  onChange={(e) =>
+                  onChange={function(e) {
                     setManualMapping({
                       ...manualMapping,
-                      amountColumn:
-                        e.target.value === "" ? null : parseInt(e.target.value),
-                    })
-                  }
+                      amountColumn: e.target.value === "" ? null : parseInt(e.target.value),
+                    });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Selecione...</option>
-                  {csvHeaders.map((header, index) => (
-                    <option key={index} value={index}>
-                      [{index}] {header}
-                    </option>
-                  ))}
+                  {csvHeaders.map(function(header, index) {
+                    return (
+                      <option key={index} value={index}>
+                        [{index}] {header}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -369,9 +335,7 @@ export default function UploadPage() {
             <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-800">
-                    {transactions.length} transações encontradas
-                  </h2>
+                  <h2 className="text-lg font-semibold text-gray-800">{transactions.length} transações encontradas</h2>
                   <p className="text-sm text-gray-400">{fileName}</p>
                 </div>
                 <button
@@ -387,32 +351,22 @@ export default function UploadPage() {
                   <thead>
                     <tr className="border-b border-gray-200 text-left text-gray-500">
                       <th className="py-2 px-2 md:px-3 font-medium">Data</th>
-                      <th className="py-2 px-2 md:px-3 font-medium">
-                        Descrição
-                      </th>
-                      <th className="py-2 px-2 md:px-3 font-medium text-right">
-                        Valor
-                      </th>
+                      <th className="py-2 px-2 md:px-3 font-medium">Descrição</th>
+                      <th className="py-2 px-2 md:px-3 font-medium text-right">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.slice(0, 50).map((trx, index) => (
-                      <tr key={index} className="border-b border-gray-50">
-                        <td className="py-2 px-2 md:px-3 text-gray-600 whitespace-nowrap">
-                          {formatDate(trx.date)}
-                        </td>
-                        <td className="py-2 px-2 md:px-3 text-gray-700 max-w-xs truncate">
-                          {trx.description}
-                        </td>
-                        <td
-                          className={`py-2 px-2 md:px-3 text-right font-medium whitespace-nowrap ${
-                            trx.amount >= 0 ? "text-green-600" : "text-red-600"
-                          }`}
-                        >
-                          {formatCurrency(trx.amount)}
-                        </td>
-                      </tr>
-                    ))}
+                    {transactions.slice(0, 50).map(function(trx, index) {
+                      return (
+                        <tr key={index} className="border-b border-gray-50">
+                          <td className="py-2 px-2 md:px-3 text-gray-600 whitespace-nowrap">{formatDate(trx.date)}</td>
+                          <td className="py-2 px-2 md:px-3 text-gray-700 max-w-xs truncate">{trx.description}</td>
+                          <td className={"py-2 px-2 md:px-3 text-right font-medium whitespace-nowrap " + (trx.amount >= 0 ? "text-green-600" : "text-red-600")}>
+                            {formatCurrency(trx.amount)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -429,9 +383,7 @@ export default function UploadPage() {
                   disabled={importing}
                   className="px-6 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {importing
-                    ? "Importando..."
-                    : `Importar ${transactions.length} transações`}
+                  {importing ? "Importando..." : "Importar " + transactions.length + " transações"}
                 </button>
               </div>
             </div>
