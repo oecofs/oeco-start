@@ -117,7 +117,9 @@ export default function UploadPage() {
     setError("");
 
     try {
-      const monthRefs = Array.from(new Set(transactions.map((t) => t.month_ref)));
+      // Remover duplicatas de month_ref sem usar Set
+      const allMonthRefs = transactions.map((t) => t.month_ref);
+      const monthRefs = allMonthRefs.filter((v, i, a) => a.indexOf(v) === i);
 
       const { data: existing } = await supabase
         .from("transactions")
@@ -125,16 +127,19 @@ export default function UploadPage() {
         .in("month_ref", monthRefs)
         .not("fitid", "is", null);
 
-      const existingFitids = new Set((existing || []).map((t) => t.fitid));
+      // Usar array simples em vez de Set
+      const existingFitids = (existing || []).map((t) => t.fitid);
 
       const newTransactions = transactions.filter(
-        (t) => !existingFitids.has(t.fitid)
+        (t) => !existingFitids.includes(t.fitid)
       );
 
       const skipped = transactions.length - newTransactions.length;
 
       if (newTransactions.length === 0) {
-        setSuccess(`Todas as ${transactions.length} transações já foram importadas anteriormente.`);
+        setSuccess(
+          `Todas as ${transactions.length} transações já foram importadas anteriormente.`
+        );
         setImporting(false);
         return;
       }
@@ -180,7 +185,11 @@ export default function UploadPage() {
     setNeedsManualMapping(false);
     setCsvHeaders([]);
     setCsvContent("");
-    setManualMapping({ dateColumn: null, descriptionColumn: null, amountColumn: null });
+    setManualMapping({
+      dateColumn: null,
+      descriptionColumn: null,
+      amountColumn: null,
+    });
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -258,7 +267,8 @@ export default function UploadPage() {
               qual coluna corresponde a cada campo:
             </p>
             <p className="text-xs text-gray-400 mb-4">
-              Colunas encontradas: {csvHeaders.map((h, i) => `[${i}] ${h}`).join("  |  ")}
+              Colunas encontradas:{" "}
+              {csvHeaders.map((h, i) => `[${i}] ${h}`).join("  |  ")}
             </p>
 
             <div className="space-y-4">
@@ -271,7 +281,8 @@ export default function UploadPage() {
                   onChange={(e) =>
                     setManualMapping({
                       ...manualMapping,
-                      dateColumn: e.target.value === "" ? null : parseInt(e.target.value),
+                      dateColumn:
+                        e.target.value === "" ? null : parseInt(e.target.value),
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -294,7 +305,10 @@ export default function UploadPage() {
                   onChange={(e) =>
                     setManualMapping({
                       ...manualMapping,
-                      descriptionColumn: e.target.value === "" ? null : parseInt(e.target.value),
+                      descriptionColumn:
+                        e.target.value === ""
+                          ? null
+                          : parseInt(e.target.value),
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -317,7 +331,8 @@ export default function UploadPage() {
                   onChange={(e) =>
                     setManualMapping({
                       ...manualMapping,
-                      amountColumn: e.target.value === "" ? null : parseInt(e.target.value),
+                      amountColumn:
+                        e.target.value === "" ? null : parseInt(e.target.value),
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -372,8 +387,12 @@ export default function UploadPage() {
                   <thead>
                     <tr className="border-b border-gray-200 text-left text-gray-500">
                       <th className="py-2 px-2 md:px-3 font-medium">Data</th>
-                      <th className="py-2 px-2 md:px-3 font-medium">Descrição</th>
-                      <th className="py-2 px-2 md:px-3 font-medium text-right">Valor</th>
+                      <th className="py-2 px-2 md:px-3 font-medium">
+                        Descrição
+                      </th>
+                      <th className="py-2 px-2 md:px-3 font-medium text-right">
+                        Valor
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
