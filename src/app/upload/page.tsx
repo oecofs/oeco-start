@@ -20,7 +20,6 @@ export default function UploadPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // CSV manual mapping state
   const [needsManualMapping, setNeedsManualMapping] = useState(false);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvContent, setCsvContent] = useState("");
@@ -40,7 +39,6 @@ export default function UploadPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset state
     setError("");
     setSuccess("");
     setTransactions([]);
@@ -48,14 +46,12 @@ export default function UploadPage() {
     setCsvHeaders([]);
     setCsvContent("");
 
-    // Validate file type
     const extension = file.name.split(".").pop()?.toLowerCase();
     if (extension !== "ofx" && extension !== "csv") {
       setError("Tipo de arquivo inválido. Use .ofx ou .csv");
       return;
     }
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       setError("Arquivo muito grande. Tamanho máximo: 5MB.");
       return;
@@ -72,12 +68,10 @@ export default function UploadPage() {
         const parsed = parseOFX(buffer);
         setTransactions(parsed);
       } else {
-        // CSV parser — converte buffer para texto
         const text = new TextDecoder("utf-8").decode(buffer);
         const result = parseCSV(text);
 
         if (result.needsManualMapping) {
-          // Precisa de mapeamento manual
           setCsvHeaders(result.headers);
           setCsvContent(text);
           setNeedsManualMapping(true);
@@ -91,8 +85,7 @@ export default function UploadPage() {
       setLoading(false);
     }
   }
-  
-  // Process CSV with manual mapping
+
   function handleManualMap() {
     if (
       manualMapping.dateColumn === null ||
@@ -117,7 +110,6 @@ export default function UploadPage() {
     }
   }
 
-  // Import transactions to database
   async function handleImport() {
     if (transactions.length === 0) return;
 
@@ -211,21 +203,18 @@ export default function UploadPage() {
       <div className="p-4 md:p-8 max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Subir Extrato</h1>
 
-        {/* Error */}
         {error && (
           <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
             {error}
           </div>
         )}
 
-        {/* Success */}
         {success && (
           <div className="mb-4 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
             {success}
           </div>
         )}
 
-        {/* Hidden file input */}
         <input
           ref={fileInputRef}
           type="file"
@@ -234,7 +223,6 @@ export default function UploadPage() {
           className="hidden"
         />
 
-        {/* Upload area */}
         {transactions.length === 0 && !loading && !needsManualMapping && (
           <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
             <button
@@ -254,14 +242,12 @@ export default function UploadPage() {
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
             <p className="text-gray-500">Lendo arquivo...</p>
           </div>
         )}
 
-        {/* Manual column mapping (CSV fallback) */}
         {needsManualMapping && !loading && (
           <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-2">
@@ -363,7 +349,6 @@ export default function UploadPage() {
           </div>
         )}
 
-        {/* Preview table */}
         {transactions.length > 0 && !needsManualMapping && (
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
