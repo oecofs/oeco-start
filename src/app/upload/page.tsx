@@ -72,8 +72,9 @@ export default function UploadPage() {
         const parsed = parseOFX(buffer);
         setTransactions(parsed);
       } else {
-        // CSV parser
-        const result = parseCSV(new TextDecoder("utf-8").decode(buffer));
+        // CSV parser — converte buffer para texto
+        const text = new TextDecoder("utf-8").decode(buffer);
+        const result = parseCSV(text);
 
         if (result.needsManualMapping) {
           // Precisa de mapeamento manual
