@@ -73,7 +73,7 @@ export default function UploadPage() {
 
         if (result.needsManualMapping) {
           setCsvHeaders(result.headers);
-          setCsvContent(text);
+          setCsvContent(Text);
           setNeedsManualMapping(true);
         } else {
           setTransactions(result.transactions);
