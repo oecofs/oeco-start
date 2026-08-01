@@ -117,7 +117,7 @@ export default function UploadPage() {
     setError("");
 
     try {
-      const monthRefs = [...new Set(transactions.map((t) => t.month_ref))];
+      const monthRefs = Array.from(new Set(transactions.map((t) => t.month_ref)));
 
       const { data: existing } = await supabase
         .from("transactions")
