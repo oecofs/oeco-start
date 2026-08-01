@@ -28,6 +28,7 @@ type Receivable = {
   description: string;
   amount: number;
   due_date: string;
+  status: string;
   is_recurring: boolean;
   recurring_day: number | null;
   month_ref: string;
