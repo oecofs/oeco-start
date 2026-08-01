@@ -71,13 +71,13 @@ export default function UploadPage() {
         const text = new TextDecoder("utf-8").decode(buffer);
         const result = parseCSV(text);
 
-       if (result.needsManualMapping) {
-         setCsvHeaders(result.headers);
-         setCsvContent(Text);
-         setNeedsManualMapping(true);
-       } else {
-         setTransactions(result.transactions);
-       }
+        if (result.needsManualMapping) {
+          setCsvHeaders(result.headers);
+          setCsvContent(text);
+          setNeedsManualMapping(true);
+        } else {
+          setTransactions(result.transactions);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao ler arquivo.");
