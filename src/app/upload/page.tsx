@@ -91,7 +91,7 @@ export default function UploadPage() {
       setLoading(false);
     }
   }
-
+  
   // Process CSV with manual mapping
   function handleManualMap() {
     if (
