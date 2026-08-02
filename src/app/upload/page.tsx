@@ -78,10 +78,10 @@ export default function UploadPage() {
         setTransactions(parsed);
       } else if (extension === "xlsx" || extension === "xls") {
         // ===== Excel: converter para CSV e usar o parser existente =====
-        const workbook = XLSX.read(buffer, { type: "array" });
+        const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const csvText = XLSX.utils.sheet_to_csv(worksheet);
+        const csvText = XLSX.utils.sheet_to_csv(worksheet, { raw: false, dateNF: "yyyy-mm-dd" });
         const result = parseCSV(csvText);
         if (result.needsManualMapping) {
           setCsvHeaders(result.headers);
