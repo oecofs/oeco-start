@@ -2,7 +2,6 @@
 // Parser de CSV (Fallback)
 // Lê arquivos .csv exportados por bancos brasileiros
 //
-
 export type ParsedTransaction = {
   date: string;        // YYYY-MM-DD
   description: string; // texto da descrição/histórico
@@ -22,13 +21,11 @@ export type ColumnMapping = {
  */
 export function detectDelimiter(text: string): string {
   const firstLine = text.split("\n")[0] || "";
-
   const counts = {
     comma: (firstLine.match(/,/g) || []).length,
     semicolon: (firstLine.match(/;/g) || []).length,
     tab: (firstLine.match(/\t/g) || []).length,
   };
-
   if (counts.semicolon >= counts.comma && counts.semicolon >= counts.tab) {
     return ";";
   } else if (counts.tab >= counts.comma && counts.tab >= counts.semicolon) {
@@ -40,16 +37,13 @@ export function detectDelimiter(text: string): string {
 
 /**
  * Faz o parse de uma linha CSV respeitando aspas
- * Ex: "Cliente, S.A.";100,50 → ["Cliente, S.A.", "100,50"]
  */
 function parseCSVLine(line: string, delimiter: string): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
-
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
-
     if (char === '"') {
       inQuotes = !inQuotes;
     } else if (char === delimiter && !inQuotes) {
@@ -59,14 +53,12 @@ function parseCSVLine(line: string, delimiter: string): string[] {
       current += char;
     }
   }
-
   result.push(current.trim());
   return result;
 }
 
 /**
  * Tenta mapear colunas automaticamente pelo cabeçalho
- * Procura por "data", "descrição"/"histórico", "valor"
  */
 export function autoDetectColumns(headers: string[]): ColumnMapping {
   const mapping: ColumnMapping = {
@@ -74,30 +66,30 @@ export function autoDetectColumns(headers: string[]): ColumnMapping {
     descriptionColumn: null,
     amountColumn: null,
   };
-
   headers.forEach((header, index) => {
     const normalized = header.toLowerCase().trim();
-
-    // Data: procura por "data"
+    // Data
     if (
       mapping.dateColumn === null &&
       (normalized.includes("data") || normalized.includes("date"))
     ) {
       mapping.dateColumn = index;
     }
-
-    // Descrição: procura por "descrição", "descrição", "histórico", "memo", "description"
+    // Descrição — CORRIGIDO: adicionado "texto", "desc", "nome", "historico"
     if (
       mapping.descriptionColumn === null &&
       (normalized.includes("descri") ||
         normalized.includes("hist") ||
         normalized.includes("memo") ||
-        normalized.includes("lanc"))
+        normalized.includes("lanc") ||
+        normalized.includes("texto") ||
+        normalized.includes("desc") ||
+        normalized.includes("nome") ||
+        normalized.includes("historico"))
     ) {
       mapping.descriptionColumn = index;
     }
-
-    // Valor: procura por "valor", "amount", "montant"
+    // Valor
     if (
       mapping.amountColumn === null &&
       (normalized.includes("valor") ||
@@ -107,17 +99,14 @@ export function autoDetectColumns(headers: string[]): ColumnMapping {
       mapping.amountColumn = index;
     }
   });
-
   return mapping;
 }
 
 /**
- * Normaliza data de DD/MM/YYYY ou DD-MM-YYYY para YYYY-MM-DD
- * Também lida com YYYY-MM-DD (já no formato certo)
+ * Normaliza data — CORRIGIDO: adicionado suporte a número serial do Excel
  */
 function normalizeDate(dateStr: string): string {
   if (!dateStr) return "";
-
   const cleaned = dateStr.trim().replace(/["']/g, "");
 
   // Se já está no formato YYYY-MM-DD
@@ -143,25 +132,47 @@ function normalizeDate(dateStr: string): string {
     return `${year}-${month}-${day}`;
   }
 
+  // ===== NOVO: Número serial do Excel (ex: 45678) =====
+  const excelMatch = cleaned.match(/^(\d{4,5})$/);
+  if (excelMatch) {
+    const serial = parseInt(excelMatch[1]);
+    // Range válido: 1/1/1970 a ~31/12/2099
+    if (serial > 25569 && serial < 73415) {
+      const date = new Date((serial - 25569) * 86400 * 1000);
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(date.getUTCDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+  }
+
+  // ===== NOVO: Data no formato DD/MM/YY (2 dígitos no ano) =====
+  const match3 = cleaned.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2})$/);
+  if (match3) {
+    const day = match3[1].padStart(2, "0");
+    const month = match3[2].padStart(2, "0");
+    let year = match3[3];
+    // Se o ano tem 2 dígitos, assume 2000+
+    if (year.length === 2) {
+      year = "20" + year;
+    }
+    return `${year}-${month}-${day}`;
+  }
+
   return "";
 }
 
 /**
  * Normaliza valor de formato brasileiro para número
- * "R$ 1.234,56" → 1234.56
- * "-1.234,56" → -1234.56
- * "1.234,56-" → -1234.56 (negativo com traço no final)
- * "1234.56" → 1234.56
  */
 function normalizeAmount(valueStr: string): number {
   if (!valueStr) return 0;
-
   let cleaned = valueStr.trim().replace(/["']/g, "");
 
   // Remove R$ e espaços
   cleaned = cleaned.replace(/R\$/gi, "").trim();
 
-  // Verifica se é negativo (traço no início ou no final)
+  // Verifica se é negativo
   let isNegative = false;
   if (cleaned.startsWith("-")) {
     isNegative = true;
@@ -171,12 +182,10 @@ function normalizeAmount(valueStr: string): number {
     cleaned = cleaned.slice(0, -1);
   }
 
-  // Remove espaços
   cleaned = cleaned.trim();
 
   // Se tem vírgula e ponto (formato: 1.234,56)
   if (cleaned.includes(",") && cleaned.includes(".")) {
-    // Remove os pontos (separador de milhares) e troca vírgula por ponto
     cleaned = cleaned.replace(/\./g, "").replace(",", ".");
   } else if (cleaned.includes(",")) {
     // Só vírgula: 1234,56 → 1234.56
@@ -184,19 +193,15 @@ function normalizeAmount(valueStr: string): number {
   }
 
   let amount = parseFloat(cleaned);
-
   if (isNaN(amount)) return 0;
-
   if (isNegative) {
     amount = -Math.abs(amount);
   }
-
   return amount;
 }
 
 /**
  * Faz o parse completo do CSV.
- * Se autoDetect falhar, retorna erro para a UI mostrar mapeamento manual.
  */
 export function parseCSV(
   content: string,
@@ -206,31 +211,26 @@ export function parseCSV(
     throw new Error("Arquivo CSV vazio.");
   }
 
-  // Divide em linhas
   const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
-
   if (lines.length < 2) {
     throw new Error("CSV inválido: precisa ter pelo menos um cabeçalho e uma linha de dados.");
   }
 
-  // Detecta delimitador
   const delimiter = detectDelimiter(content);
-
-  // Primeira linha = cabeçalho
   const headers = parseCSVLine(lines[0], delimiter);
 
-  // Mapeamento: manual ou automático
   let mapping: ColumnMapping;
-
   if (manualMapping) {
     mapping = manualMapping;
   } else {
     mapping = autoDetectColumns(headers);
   }
 
-  // Verifica se conseguiu mapear todas as colunas
-  if (mapping.dateColumn === null || mapping.descriptionColumn === null || mapping.amountColumn === null) {
-    // Retorna sinal de que precisa mapeamento manual
+  if (
+    mapping.dateColumn === null ||
+    mapping.descriptionColumn === null ||
+    mapping.amountColumn === null
+  ) {
     return {
       transactions: [],
       needsManualMapping: true,
@@ -242,10 +242,8 @@ export function parseCSV(
   const transactions: ParsedTransaction[] = [];
   let skipped = 0;
 
-  // Processa cada linha de dados (a partir da linha 2)
   for (let i = 1; i < lines.length; i++) {
     const columns = parseCSVLine(lines[i], delimiter);
-
     const dateStr = columns[mapping.dateColumn] || "";
     const description = (columns[mapping.descriptionColumn] || "").trim();
     const amountStr = columns[mapping.amountColumn] || "";
@@ -253,15 +251,12 @@ export function parseCSV(
     const date = normalizeDate(dateStr);
     const amount = normalizeAmount(amountStr);
 
-    // Valida
     if (!date || !description || isNaN(amount)) {
       skipped++;
       continue;
     }
 
-    const month_ref = date.substring(0, 7); // YYYY-MM
-
-    // Gera fitid único para CSV (não há ID nativo)
+    const month_ref = date.substring(0, 7);
     const fitid = `csv-${date}-${i}-${description.substring(0, 15).replace(/\s/g, "")}`;
 
     transactions.push({
@@ -274,7 +269,9 @@ export function parseCSV(
   }
 
   if (transactions.length === 0) {
-    throw new Error("Nenhuma transação válida encontrada no CSV. Verifique o formato do arquivo.");
+    throw new Error(
+      `Nenhuma transação válida encontrada no CSV. Verifique o formato do arquivo. (${skipped} linhas ignoradas.)`
+    );
   }
 
   return {
