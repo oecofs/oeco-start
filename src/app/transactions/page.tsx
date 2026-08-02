@@ -1,7 +1,5 @@
 "use client";
-
 export const dynamic = "force-dynamic";
-
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Navigation from "@/components/Navigation";
@@ -29,12 +27,10 @@ type Transaction = {
 
 export default function TransactionsPage() {
   const supabase = createClient();
-
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
-
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [costCenters, setCostCenters] = useState<{ id: string; name: string }[]>([]);
@@ -42,7 +38,7 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
-  const [receivables, setReceivables] = useState<any[]>([]);  
+  const [receivables, setReceivables] = useState<any[]>([]);
   const [editDescription, setEditDescription] = useState("");
 
   // Fetch categories
@@ -51,36 +47,29 @@ export default function TransactionsPage() {
       .from("categories")
       .select("*")
       .order("name");
-
     setCategories(data || []);
-
-    // Busca centros de custo da tabela dedicada
     const { data: ccData } = await supabase
       .from("cost_centers")
       .select("id, name")
       .order("name");
-
     setCostCenters(ccData || []);
   }, [supabase]);
 
   // Fetch transactions for selected month
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
-
     const { data } = await supabase
       .from("transactions")
       .select("*")
       .eq("month_ref", selectedMonth)
       .order("date", { ascending: false });
-
     setTransactions(data || []);
-      // Buscar recebíveis do mês para o modal
-      const { data: recData } = await supabase
-        .from("receivables")
-        .select("*")
-        .eq("month_ref", selectedMonth)
-        .eq("is_active", true);
-      setReceivables(recData || []);
+    const { data: recData } = await supabase
+      .from("receivables")
+      .select("*")
+      .eq("month_ref", selectedMonth)
+      .eq("is_active", true);
+    setReceivables(recData || []);
     setLoading(false);
   }, [supabase, selectedMonth]);
 
@@ -92,54 +81,62 @@ export default function TransactionsPage() {
     fetchTransactions();
   }, [fetchTransactions]);
 
-  // Filter transactions by search
   const filteredTransactions = transactions.filter((t) =>
     t.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Check if all transactions are reconciled
   const allReconciled =
     transactions.length > 0 && transactions.every((t) => t.is_reconciled);
 
-  // Get categories by type
   function getCategoriesByType(type: "income" | "expense"): Category[] {
     return categories.filter((c) => c.type === type && c.parent_id === null);
   }
 
-  // Get subcategories for a parent
   function getSubcategories(parentId: string): Category[] {
     return categories.filter((c) => c.parent_id === parentId);
   }
 
-   // Update category on a transaction
+  // ===== INÍCIO DA CORREÇÃO =====
+  // Helper: dado um category_id (pode ser pai ou sub), retorna o ID do pai
+  function getParentCategoryId(categoryId: string | null): string | null {
+    if (!categoryId) return null;
+    const cat = categories.find((c) => c.id === categoryId);
+    if (!cat) return null;
+    // Se tem parent_id, é uma subcategoria → retorna o pai
+    if (cat.parent_id) return cat.parent_id;
+    // Senão, é uma categoria pai → retorna ela mesma
+    return categoryId;
+  }
+
+  // Helper: dado um category_id, retorna true se for uma subcategoria
+  function isSubcategory(categoryId: string | null): boolean {
+    if (!categoryId) return false;
+    const cat = categories.find((c) => c.id === categoryId);
+    return cat ? cat.parent_id !== null : false;
+  }
+  // ===== FIM DA CORREÇÃO =====
+
+  // Update category on a transaction
   async function handleCategoryChange(
     transactionId: string,
     categoryId: string | null
   ) {
-    // Verifica se a categoria selecionada tem subcategorias
     let isReconciled = false;
-
     if (categoryId) {
       const selectedCategory = categories.find((c) => c.id === categoryId);
       const isSub = selectedCategory?.parent_id !== null && selectedCategory?.parent_id !== undefined;
-
       if (isSub) {
-        // Selecionou uma subcategoria → conciliada
         isReconciled = true;
       } else {
-        // Selecionou uma categoria pai → verifica se tem filhas
         const hasSubs = categories.some((c) => c.parent_id === categoryId);
         if (!hasSubs) {
-          // Não tem subcategorias → só a categoria basta
           isReconciled = true;
         } else {
-          // Tem subcategorias → precisa selecionar uma
           isReconciled = false;
         }
       }
     }
 
-    // Otimistic update
     setTransactions((prev) =>
       prev.map((t) =>
         t.id === transactionId
@@ -156,11 +153,9 @@ export default function TransactionsPage() {
       category_id: categoryId,
       is_reconciled: isReconciled,
     };
-
     await supabase.from("transactions").update(updates).eq("id", transactionId);
   }
-  
-  // Update cost center on a transaction
+
   async function handleCostCenterChange(
     transactionId: string,
     costCenter: string | null
@@ -170,32 +165,26 @@ export default function TransactionsPage() {
         t.id === transactionId ? { ...t, cost_center: costCenter } : t
       )
     );
-
     await supabase
       .from("transactions")
       .update({ cost_center: costCenter })
       .eq("id", transactionId);
   }
 
-  // Update description
   async function handleSaveDescription(transactionId: string) {
     if (!editDescription.trim()) return;
-
     setTransactions((prev) =>
       prev.map((t) =>
         t.id === transactionId ? { ...t, description: editDescription.trim() } : t
       )
     );
-
     await supabase
       .from("transactions")
       .update({ description: editDescription.trim() })
       .eq("id", transactionId);
-
     setEditingId(null);
   }
 
-  // Format helpers
   function formatCurrency(value: number): string {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -208,16 +197,9 @@ export default function TransactionsPage() {
     return `${day}/${month}/${year}`;
   }
 
-  function getCategoryName(id: string | null): string {
-    if (!id) return "";
-    const cat = categories.find((c) => c.id === id);
-    return cat?.name || "";
-  }
-
   return (
     <Navigation>
       <div className="p-4 md:p-8">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Transações</h1>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -232,7 +214,6 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Finalizar conciliação button */}
         {allReconciled && (
           <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-sm text-green-700 font-medium">
@@ -247,14 +228,12 @@ export default function TransactionsPage() {
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
             <p className="text-gray-400">Carregando transações...</p>
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && transactions.length === 0 && (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
             <p className="text-gray-400 mb-2">Nenhuma transação encontrada neste mês.</p>
@@ -264,7 +243,6 @@ export default function TransactionsPage() {
           </div>
         )}
 
-        {/* Transactions table */}
         {!loading && transactions.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
@@ -284,16 +262,16 @@ export default function TransactionsPage() {
                   {filteredTransactions.map((trx) => {
                     const type = trx.amount >= 0 ? "income" : "expense";
                     const cats = getCategoriesByType(type);
-                    const subs = trx.category_id ? getSubcategories(trx.category_id) : [];
-
+                    // ===== CORREÇÃO: derivar categoria pai e subcategoria selecionada =====
+                    const parentId = getParentCategoryId(trx.category_id);
+                    const subIsSelected = isSubcategory(trx.category_id);
+                    const subs = parentId ? getSubcategories(parentId) : [];
+                    // ===== FIM DA CORREÇÃO =====
                     return (
                       <tr key={trx.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                        {/* Data — não editável */}
                         <td className="py-2 px-2 md:px-3 text-gray-600 whitespace-nowrap">
                           {formatDate(trx.date)}
                         </td>
-
-                        {/* Descrição — editável */}
                         <td className="py-2 px-2 md:px-3 text-gray-700">
                           {editingId === trx.id ? (
                             <div className="flex gap-1">
@@ -327,8 +305,6 @@ export default function TransactionsPage() {
                             </span>
                           )}
                         </td>
-
-                        {/* Valor — não editável */}
                         <td
                           className={`py-2 px-2 md:px-3 text-right font-medium whitespace-nowrap ${
                             trx.amount >= 0 ? "text-green-600" : "text-red-600"
@@ -336,11 +312,10 @@ export default function TransactionsPage() {
                         >
                           {formatCurrency(trx.amount)}
                         </td>
-
-                        {/* Categoria — dropdown */}
+                        {/* Categoria — dropdown (mostra o pai) */}
                         <td className="py-2 px-2 md:px-3">
                           <select
-                            value={trx.category_id || ""}
+                            value={parentId || ""}
                             onChange={(e) =>
                               handleCategoryChange(
                                 trx.id,
@@ -357,12 +332,11 @@ export default function TransactionsPage() {
                             ))}
                           </select>
                         </td>
-
-                        {/* Subcategoria — dropdown dinâmico */}
+                        {/* Subcategoria — dropdown dinâmico (mostra a sub selecionada) */}
                         <td className="py-2 px-2 md:px-3">
                           {subs.length > 0 ? (
                             <select
-                              value={trx.category_id || ""}
+                              value={subIsSelected ? trx.category_id : ""}
                               onChange={(e) =>
                                 handleCategoryChange(
                                   trx.id,
@@ -382,8 +356,7 @@ export default function TransactionsPage() {
                             <span className="text-gray-300 text-xs">—</span>
                           )}
                         </td>
-
-                        {/* Centro de Custo — dropdown opcional */}
+                        {/* Centro de Custo */}
                         <td className="py-2 px-2 md:px-3">
                           <select
                             value={trx.cost_center || ""}
@@ -403,8 +376,7 @@ export default function TransactionsPage() {
                             ))}
                           </select>
                         </td>
-
-                        {/* Status — automático */}
+                        {/* Status */}
                         <td className="py-2 px-2 md:px-3">
                           <span
                             className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${
@@ -422,8 +394,6 @@ export default function TransactionsPage() {
                 </tbody>
               </table>
             </div>
-
-            {/* Summary footer */}
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
               <span>
                 {filteredTransactions.length} de {transactions.length} transações
@@ -435,7 +405,7 @@ export default function TransactionsPage() {
             </div>
           </div>
         )}
-        {/* Modal de finalização */}
+
         <FinalizeReconciliationModal
           open={showFinalizeModal}
           onClose={() => setShowFinalizeModal(false)}
