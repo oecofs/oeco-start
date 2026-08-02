@@ -81,7 +81,7 @@ export default function UploadPage() {
         const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const csvText = XLSX.utils.sheet_to_csv(worksheet, { raw: false, dateNF: "yyyy-mm-dd" });
+        const csvText = XLSX.utils.sheet_to_csv(worksheet, { dateNF: "yyyy-mm-dd" });
         const result = parseCSV(csvText);
         if (result.needsManualMapping) {
           setCsvHeaders(result.headers);
