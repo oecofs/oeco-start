@@ -336,7 +336,7 @@ export default function TransactionsPage() {
                         <td className="py-2 px-2 md:px-3">
                           {subs.length > 0 ? (
                             <select
-                              value={subIsSelected ? trx.category_id : ""}
+                              value={subIsSelected ? trx.category_id ?? "" : ""}
                               onChange={(e) =>
                                 handleCategoryChange(
                                   trx.id,
