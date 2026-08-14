@@ -1,85 +1,87 @@
 "use client";
-
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type MonthOption = {
-  value: string; // YYYY-MM
-  label: string; // "Julho de 2026"
-};
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
 
 export default function MonthSelector({
   value,
   onChange,
 }: {
-  value: string;
+  value: string; // YYYY-MM
   onChange: (month: string) => void;
 }) {
   const supabase = createClient();
-  const [months, setMonths] = useState<MonthOption[]>([]);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
 
-  const monthNames = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-  ];
+  // Extrai ano e mês do valor atual
+  const [currentYear, currentMonthNum] = value.split("-");
+  const selectedYear = parseInt(currentYear);
+  const selectedMonthNum = parseInt(currentMonthNum);
 
-  const getCurrentMonth = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  };
-
-  const formatMonthLabel = (monthRef: string) => {
-    const [year, month] = monthRef.split("-");
-    const monthIndex = parseInt(month) - 1;
-    return `${monthNames[monthIndex]} de ${year}`;
-  };
-
-  const fetchMonths = useCallback(async () => {
-    // Busca meses que têm transações
+  const fetchYears = useCallback(async () => {
     const { data } = await supabase
       .from("transactions")
       .select("month_ref")
       .order("month_ref", { ascending: false });
 
-    const uniqueMonths = [...new Set((data || []).map((t) => t.month_ref))];
+    const years = new Set<number>();
+    (data || []).forEach((t) => {
+      const year = parseInt(t.month_ref.split("-")[0]);
+      if (!isNaN(year)) years.add(year);
+    });
 
-    // Adiciona o mês atual se não estiver na lista
-    const currentMonth = getCurrentMonth();
-    if (!uniqueMonths.includes(currentMonth)) {
-      uniqueMonths.unshift(currentMonth);
-    }
+    // Sempre inclui o ano atual
+    const now = new Date();
+    years.add(now.getFullYear());
 
     // Ordena do mais recente para o mais antigo
-    uniqueMonths.sort((a, b) => b.localeCompare(a));
-
-    const options = uniqueMonths.map((m) => ({
-      value: m,
-      label: formatMonthLabel(m),
-    }));
-
-    setMonths(options);
-
-    // Se o valor atual não está na lista, usa o mês atual
-    if (!uniqueMonths.includes(value)) {
-      onChange(currentMonth);
-    }
-  }, [supabase, value, onChange]);
+    setAvailableYears(Array.from(years).sort((a, b) => b - a));
+  }, [supabase]);
 
   useEffect(() => {
-    fetchMonths();
-  }, [fetchMonths]);
+    fetchYears();
+  }, [fetchYears]);
+
+  const handleYearChange = (year: number) => {
+    const monthStr = String(selectedMonthNum).padStart(2, "0");
+    onChange(`${year}-${monthStr}`);
+  };
+
+  const handleMonthChange = (month: number) => {
+    const monthStr = String(month).padStart(2, "0");
+    onChange(`${selectedYear}-${monthStr}`);
+  };
 
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-    >
-      {months.map((month) => (
-        <option key={month.value} value={month.value}>
-          {month.label}
-        </option>
-      ))}
-    </select>
+    <div className="flex gap-2">
+      {/* Dropdown de Mês */}
+      <select
+        value={selectedMonthNum}
+        onChange={(e) => handleMonthChange(parseInt(e.target.value))}
+        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+      >
+        {MONTH_NAMES.map((name, index) => (
+          <option key={index + 1} value={index + 1}>
+            {name}
+          </option>
+        ))}
+      </select>
+      {/* Dropdown de Ano */}
+      <select
+        value={selectedYear}
+        onChange={(e) => handleYearChange(parseInt(e.target.value))}
+        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+      >
+        {availableYears.map((year) => (
+          <option key={year} value={year}>
+            {year}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
