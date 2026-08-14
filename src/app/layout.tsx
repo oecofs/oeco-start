@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   title: wl.appName,
   description: "Conciliação bancária e gestão de recebíveis",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icon-512.png",
+    apple: "/icon-512.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
