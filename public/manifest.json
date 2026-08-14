@@ -1,0 +1,10 @@
+{
+  "name": "Oeco",
+  "short_name": "Oeco",
+  "description": "Conciliação bancária e gestão de recebíveis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af",
+  "orientation": "portrait"
+}
