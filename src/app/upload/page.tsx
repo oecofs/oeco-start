@@ -172,19 +172,34 @@ export default function UploadPage() {
         return;
       }
 
-      const { error: insertError } = await supabase
-        .from("transactions")
-        .insert(
-          newTransactions.map((t) => ({
-            date: t.date,
-            description: t.description,
-            amount: t.amount,
-            month_ref: t.month_ref,
-            fitid: t.fitid,
-            dedupe_hash: t.dedupe_hash,
-            is_reconciled: false,
-          }))
-        );
+      // Buscar o ID do usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Inserir em lotes de 50 para evitar limite de payload
+      const BATCH_SIZE = 50;
+      let insertError = null;
+      
+      for (let i = 0; i < newTransactions.length; i += BATCH_SIZE) {
+        const batch = newTransactions.slice(i, i + BATCH_SIZE);
+        const { error } = await supabase
+          .from("transactions")
+          .insert(
+            batch.map((t) => ({
+              date: t.date,
+              description: t.description,
+              amount: t.amount,
+              month_ref: t.month_ref,
+              fitid: t.fitid,
+              dedupe_hash: t.dedupe_hash,
+              is_reconciled: false,
+              user_id: user?.id,
+            }))
+          );
+        if (error) {
+          insertError = error;
+          break;
+        }
+      }
 
       if (insertError) {
         setError("Erro ao importar transações.");
