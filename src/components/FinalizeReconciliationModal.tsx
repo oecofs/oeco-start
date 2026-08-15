@@ -230,10 +230,10 @@ export default function FinalizeReconciliationModal({
         try {
           const response = await fetch(wl.webhookUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "text/plain" },
             body: JSON.stringify(webhookPayload),
+            redirect: "follow",
           });
-
           if (response.ok) {
             webhookSuccess = true;
           } else {
