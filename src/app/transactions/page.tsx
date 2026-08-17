@@ -276,18 +276,27 @@ export default function TransactionsPage() {
                       <tr key={trx.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                         <td className="py-2 px-2 md:px-3 text-center whitespace-nowrap relative">
                           <button
-                            onClick={() => setTransferMenuId(transferMenuId === trx.id ? null : trx.id)}
-                            className="text-base leading-none p-1 rounded hover:bg-gray-100"
-                            title={trx.is_internal_transfer ? "Transferência entre contas" : (trx.amount >= 0 ? "Recebimento" : "Pagamento")}
-                          >
-                            {trx.is_internal_transfer ? (
-                              <span className="text-gray-400">🔄</span>
-                            ) : trx.amount >= 0 ? (
-                              <span className="text-green-500">⬆️</span>
-                            ) : (
-                              <span className="text-red-500">⬇️</span>
-                            )}
-                          </button>
+                          onClick={() => setTransferMenuId(transferMenuId === trx.id ? null : trx.id)}
+                          className="inline-flex items-center justify-center w-6 h-6 rounded-full hover:opacity-80"
+                          style={{
+                            backgroundColor: trx.is_internal_transfer ? "#9ca3af" : (trx.amount >= 0 ? "#22c55e" : "#ef4444"),
+                          }}
+                          title={trx.is_internal_transfer ? "Transferência entre contas" : (trx.amount >= 0 ? "Recebimento" : "Pagamento")}
+                        >
+                          {trx.is_internal_transfer ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M7 7h10M7 17h10M7 7l-3 3M7 7l3 3M17 17l3-3M17 17l-3-3" />
+                            </svg>
+                          ) : trx.amount >= 0 ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 19V5M5 12l7-7 7 7" />
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 5v14M19 12l-7 7-7-7" />
+                            </svg>
+                          )}
+                        </button>
                           {transferMenuId === trx.id && (
                             <>
                               <div className="fixed inset-0 z-10" onClick={() => setTransferMenuId(null)} />
@@ -297,7 +306,11 @@ export default function TransactionsPage() {
                                     onClick={() => handleToggleTransfer(trx.id, true)}
                                     className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
                                   >
-                                    <span className="text-gray-400">🔄</span> Transferência entre contas
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ backgroundColor: "#9ca3af" }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M7 7h10M7 17h10M7 7l-3 3M7 7l3 3M17 17l3-3M17 17l-3-3" />
+                                      </svg>
+                                    </span> Transferência entre contas
                                   </button>
                                 )}
                                 {trx.is_internal_transfer && (
@@ -305,12 +318,20 @@ export default function TransactionsPage() {
                                     onClick={() => handleToggleTransfer(trx.id, false)}
                                     className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
                                   >
-                                    {trx.amount >= 0 ? (
-                                      <><span className="text-green-500">⬆️</span> Recebimento</>
-                                    ) : (
-                                      <><span className="text-red-500">⬇️</span> Pagamento</>
-                                    )}
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full" style={{ backgroundColor: trx.amount >= 0 ? "#22c55e" : "#ef4444" }}>
+                                      {trx.amount >= 0 ? (
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M12 19V5M5 12l7-7 7 7" />
+                                        </svg>
+                                      ) : (
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M12 5v14M19 12l-7 7-7-7" />
+                                        </svg>
+                                      )}
+                                    </span>
+                                    {trx.amount >= 0 ? "Recebimento" : "Pagamento"}
                                   </button>
+                                )}
                                 )}
                               </div>
                             </>
