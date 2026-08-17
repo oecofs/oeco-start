@@ -187,6 +187,14 @@ export default function TransactionsPage() {
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar..."
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
+            <button
+              onClick={handleExportReconciled}
+              disabled={transactions.filter((t) => t.is_reconciled).length === 0}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              title="Exportar transações conciliadas"
+            >
+              📥 Exportar
+            </button>
           </div>
         </div>
 
