@@ -119,6 +119,47 @@ export default function TransactionsPage() {
   }
 
   async function handleDeleteTransaction() {
+    const reconciled = transactions.filter((t) => t.is_reconciled);
+    if (reconciled.length === 0) return;
+  
+    const headers = ["Data", "Descrição", "Valor", "Categoria", "Subcategoria", "Centro de Custo"];
+  
+    const rows = reconciled.map((t) => {
+      const cat = categories.find((c) => c.id === t.category_id);
+      const parentCat = cat && cat.parent_id
+        ? categories.find((c) => c.id === cat.parent_id)
+        : null;
+  
+      const categoryName = parentCat ? parentCat.name : (cat?.name || "");
+      const subcategoryName = parentCat ? cat?.name || "" : "";
+  
+      const formattedDate = formatDate(t.date);
+      const formattedValue = String(t.amount).replace(".", ",");
+  
+      const escapeCsv = (str: string) => `"${str.replace(/"/g, '""')}"`;
+  
+      return [
+        escapeCsv(formattedDate),
+        escapeCsv(t.description),
+        escapeCsv(formattedValue),
+        escapeCsv(categoryName),
+        escapeCsv(subcategoryName),
+        escapeCsv(t.cost_center || ""),
+      ].join(",");
+    });
+  
+    const csv = [headers.join(","), ...rows].join("\n");
+  
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `conciliacao_${selectedMonth}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
     if (!deleteConfirmId) return;
     await supabase.from("transactions").delete().eq("id", deleteConfirmId);
     setTransactions((prev) => prev.filter((t) => t.id !== deleteConfirmId));
