@@ -183,7 +183,7 @@ export default function UploadPage() {
         const batch = newTransactions.slice(i, i + BATCH_SIZE);
         const { error } = await supabase
           .from("transactions")
-          .insert(
+          .upsert(
             batch.map((t) => ({
               date: t.date,
               description: t.description,
@@ -193,7 +193,8 @@ export default function UploadPage() {
               dedupe_hash: t.dedupe_hash,
               is_reconciled: false,
               user_id: user?.id,
-            }))
+            })),
+            { onConflict: "dedupe_hash", ignoreDuplicates: true }
           );
         if (error) {
           insertError = error;
