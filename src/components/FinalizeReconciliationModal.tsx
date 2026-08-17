@@ -223,7 +223,9 @@ export default function FinalizeReconciliationModal({
           date: t.date,
           description: t.description,
           amount: t.amount,
-          category: getCategoryName(t.category_id),
+          category: getParentCategoryName(t.category_id),
+          subcategory: getSubcategoryName(t.category_id),
+          category_subcategory: getCategorySubcategory(t.category_id),
           cost_center: t.cost_center || null,
         })),
         receivables_summary: {
