@@ -79,6 +79,40 @@ export default function FinalizeReconciliationModal({
     const cat = categories.find((c) => c.id === id);
     return cat?.name || "Sem categoria";
   }
+  
+  // Retorna o nome da categoria PAI
+  function getParentCategoryName(id: string | null): string {
+    if (!id) return "Sem categoria";
+    const cat = categories.find((c) => c.id === id);
+    if (!cat) return "Sem categoria";
+    // Se a categoria tem parent_id, busca o pai
+    if (cat.parent_id) {
+      const parent = categories.find((c) => c.id === cat.parent_id);
+      return parent?.name || "Sem categoria";
+    }
+    // Se não tem parent_id, ela própria é a categoria pai
+    return cat.name;
+  }
+  
+  // Retorna o nome da subcategoria (filha), ou vazio se for categoria pai
+  function getSubcategoryName(id: string | null): string {
+    if (!id) return "";
+    const cat = categories.find((c) => c.id === id);
+    if (!cat) return "";
+    // Se tem parent_id, é uma subcategoria
+    if (cat.parent_id) {
+      return cat.name;
+    }
+    // Se não tem parent_id, é categoria pai (não tem subcategoria)
+    return "";
+  }
+  
+  // Retorna "Categoria > Subcategoria" ou só "Categoria"
+  function getCategorySubcategory(id: string | null): string {
+    const parent = getParentCategoryName(id);
+    const sub = getSubcategoryName(id);
+    return sub ? `${parent} > ${sub}` : parent;
+  }
 
   function formatCurrency(value: number): string {
     return new Intl.NumberFormat("pt-BR", {
@@ -110,25 +144,34 @@ export default function FinalizeReconciliationModal({
         .single();
 
       // 2. Montar by_category (agrupar transações por categoria)
-      const byCategoryMap = new Map<string, { total: number; count: number; cost_center: string | null }>();
-
+      const byCategoryMap = new Map<string, {
+        category: string;
+        subcategory: string;
+        category_subcategory: string;
+        total: number;
+        count: number;
+        cost_center: string | null;
+      }>();
       for (const t of transactions) {
-        const catName = getCategoryName(t.category_id);
-        const key = catName;
+        const parentName = getParentCategoryName(t.category_id);
+        const subName = getSubcategoryName(t.category_id);
+        const catSubName = getCategorySubcategory(t.category_id);
+        const key = catSubName;
         if (!byCategoryMap.has(key)) {
-          byCategoryMap.set(key, { total: 0, count: 0, cost_center: t.cost_center || null });
+          byCategoryMap.set(key, {
+            category: parentName,
+            subcategory: subName,
+            category_subcategory: catSubName,
+            total: 0,
+            count: 0,
+            cost_center: t.cost_center || null,
+          });
         }
         const entry = byCategoryMap.get(key)!;
         entry.total += Math.abs(Number(t.amount));
         entry.count += 1;
       }
-
-      const byCategory = Array.from(byCategoryMap.entries()).map(([category, data]) => ({
-        category,
-        cost_center: data.cost_center,
-        total: data.total,
-        count: data.count,
-      }));
+      const byCategory = Array.from(byCategoryMap.values());
 
       // 3. Calcular receivables_summary detalhado
       const today = new Date().toISOString().split("T")[0];
