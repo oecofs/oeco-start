@@ -332,7 +332,6 @@ export default function TransactionsPage() {
                                     {trx.amount >= 0 ? "Recebimento" : "Pagamento"}
                                   </button>
                                 )}
-                                )}
                               </div>
                             </>
                           )}
