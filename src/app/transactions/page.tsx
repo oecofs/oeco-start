@@ -118,7 +118,7 @@ export default function TransactionsPage() {
     setEditingId(null);
   }
 
-  async function handleDeleteTransaction() {
+  async function handleExportReconciled() {
     const reconciled = transactions.filter((t) => t.is_reconciled);
     if (reconciled.length === 0) return;
   
@@ -160,13 +160,15 @@ export default function TransactionsPage() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
+  
+  async function handleDeleteTransaction() {
     if (!deleteConfirmId) return;
     await supabase.from("transactions").delete().eq("id", deleteConfirmId);
     setTransactions((prev) => prev.filter((t) => t.id !== deleteConfirmId));
     setDeleteConfirmId(null);
     setOpenMenuId(null);
-  }
-
+  } 
+  
   function formatCurrency(value: number): string {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   }
