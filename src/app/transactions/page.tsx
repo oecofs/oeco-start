@@ -42,6 +42,7 @@ export default function TransactionsPage() {
   const [editDescription, setEditDescription] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [transferMenuId, setTransferMenuId] = useState<string | null>(null);
 
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase.from("categories").select("*").order("name");
@@ -74,7 +75,7 @@ export default function TransactionsPage() {
     t.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const allReconciled = transactions.length > 0 && transactions.every((t) => t.is_reconciled);
+  const allReconciled = transactions.length > 0 && transactions.every((t) => t.is_reconciled || t.is_internal_transfer);
 
   function getCategoriesByType(type: "income" | "expense"): Category[] {
     return categories.filter((c) => c.type === type && c.parent_id === null);
@@ -168,6 +169,33 @@ export default function TransactionsPage() {
     setDeleteConfirmId(null);
     setOpenMenuId(null);
   } 
+
+  async function handleToggleTransfer(transactionId: string, isTransfer: boolean) {
+    setTransactions((prev) => prev.map((t) =>
+      t.id === transactionId
+        ? {
+            ...t,
+            is_internal_transfer: isTransfer,
+            category_id: isTransfer ? null : t.category_id,
+            cost_center: isTransfer ? null : t.cost_center,
+            is_reconciled: isTransfer ? true : t.is_reconciled,
+          }
+        : t
+    ));
+    if (isTransfer) {
+      await supabase.from("transactions").update({
+        is_internal_transfer: true,
+        category_id: null,
+        cost_center: null,
+        is_reconciled: true,
+      }).eq("id", transactionId);
+    } else {
+      await supabase.from("transactions").update({
+        is_internal_transfer: false,
+      }).eq("id", transactionId);
+    }
+    setTransferMenuId(null);
+  }
   
   function formatCurrency(value: number): string {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -225,6 +253,7 @@ export default function TransactionsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200 text-left text-gray-500">
+                    <th className="py-3 px-2 md:px-3 font-medium whitespace-nowrap text-center w-10">Tipo</th>
                     <th className="py-3 px-2 md:px-3 font-medium whitespace-nowrap">Data</th>
                     <th className="py-3 px-2 md:px-3 font-medium">Descrição</th>
                     <th className="py-3 px-2 md:px-3 font-medium text-right whitespace-nowrap">Valor</th>
@@ -244,6 +273,48 @@ export default function TransactionsPage() {
                     const subs = parentId ? getSubcategories(parentId) : [];
                     return (
                       <tr key={trx.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                        <td className="py-2 px-2 md:px-3 text-center whitespace-nowrap relative">
+                          <button
+                            onClick={() => setTransferMenuId(transferMenuId === trx.id ? null : trx.id)}
+                            className="text-base leading-none p-1 rounded hover:bg-gray-100"
+                            title={trx.is_internal_transfer ? "Transferência entre contas" : (trx.amount >= 0 ? "Recebimento" : "Pagamento")}
+                          >
+                            {trx.is_internal_transfer ? (
+                              <span className="text-gray-400">🔄</span>
+                            ) : trx.amount >= 0 ? (
+                              <span className="text-green-500">⬆️</span>
+                            ) : (
+                              <span className="text-red-500">⬇️</span>
+                            )}
+                          </button>
+                          {transferMenuId === trx.id && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setTransferMenuId(null)} />
+                              <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[190px]">
+                                {!trx.is_internal_transfer && (
+                                  <button
+                                    onClick={() => handleToggleTransfer(trx.id, true)}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <span className="text-gray-400">🔄</span> Transferência entre contas
+                                  </button>
+                                )}
+                                {trx.is_internal_transfer && (
+                                  <button
+                                    onClick={() => handleToggleTransfer(trx.id, false)}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    {trx.amount >= 0 ? (
+                                      <><span className="text-green-500">⬆️</span> Recebimento</>
+                                    ) : (
+                                      <><span className="text-red-500">⬇️</span> Pagamento</>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </td>
                         <td className="py-2 px-2 md:px-3 text-gray-600 whitespace-nowrap">{formatDate(trx.date)}</td>
                         <td className="py-2 px-2 md:px-3 text-gray-700">
                           {editingId === trx.id ? (
@@ -266,7 +337,8 @@ export default function TransactionsPage() {
                         <td className="py-2 px-2 md:px-3">
                           <select value={parentId || ""}
                             onChange={(e) => handleCategoryChange(trx.id, e.target.value || null)}
-                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary bg-white max-w-[140px]">
+                            disabled={trx.is_internal_transfer}
+                            className={`text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary bg-white max-w-[140px] ${trx.is_internal_transfer ? "opacity-30 cursor-not-allowed" : ""}`}>
                             <option value="">—</option>
                             {cats.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
                           </select>
@@ -275,7 +347,8 @@ export default function TransactionsPage() {
                           {subs.length > 0 ? (
                             <select value={subIsSelected ? trx.category_id ?? "" : ""}
                               onChange={(e) => handleCategoryChange(trx.id, e.target.value || null)}
-                              className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary bg-white max-w-[120px]">
+                              disabled={trx.is_internal_transfer}
+                              className={`text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary bg-white max-w-[120px] ${trx.is_internal_transfer ? "opacity-30 cursor-not-allowed" : ""}`}>
                               <option value="">—</option>
                               {subs.map((sub) => (<option key={sub.id} value={sub.id}>{sub.name}</option>))}
                             </select>
@@ -284,7 +357,8 @@ export default function TransactionsPage() {
                         <td className="py-2 px-2 md:px-3">
                           <select value={trx.cost_center || ""}
                             onChange={(e) => handleCostCenterChange(trx.id, e.target.value || null)}
-                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary bg-white max-w-[110px]">
+                            disabled={trx.is_internal_transfer}
+                            className={`text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-primary bg-white max-w-[110px] ${trx.is_internal_transfer ? "opacity-30 cursor-not-allowed" : ""}`}>
                             <option value="">—</option>
                             {costCenters.map((cc) => (<option key={cc.id} value={cc.name}>{cc.name}</option>))}
                           </select>
@@ -315,7 +389,7 @@ export default function TransactionsPage() {
             </div>
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
               <span>{filteredTransactions.length} de {transactions.length} transações</span>
-              <span>{transactions.filter((t) => t.is_reconciled).length} conciliadas • {transactions.filter((t) => !t.is_reconciled).length} pendentes</span>
+              <span>{transactions.filter((t) => t.is_reconciled || t.is_internal_transfer).length} conciliadas • {transactions.filter((t) => !t.is_reconciled && !t.is_internal_transfer).length} pendentes{transactions.filter((t) => t.is_internal_transfer).length > 0 ? ` • ${transactions.filter((t) => t.is_internal_transfer).length} transferências` : ""}</span>
             </div>
           </div>
         )}
