@@ -12,6 +12,7 @@ type Transaction = {
   category_id: string | null;
   cost_center: string | null;
   is_reconciled: boolean;
+  is_internal_transfer: boolean;
   month_ref: string;
 };
 
@@ -60,14 +61,13 @@ export default function FinalizeReconciliationModal({
   if (!open) return null;
 
   // Calcular totais
-  const totalIncome = transactions
+  const relevantTransactions = transactions.filter((t) => !t.is_internal_transfer);
+  const totalIncome = relevantTransactions
     .filter((t) => t.amount > 0)
     .reduce((sum, t) => sum + Number(t.amount), 0);
-
-  const totalExpense = transactions
+  const totalExpense = relevantTransactions
     .filter((t) => t.amount < 0)
     .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
-
   const balance = totalIncome - totalExpense;
 
   // Recebíveis recebidos no mês
@@ -152,7 +152,7 @@ export default function FinalizeReconciliationModal({
         count: number;
         cost_center: string | null;
       }>();
-      for (const t of transactions) {
+      for (const t of relevantTransactions) {
         const parentName = getParentCategoryName(t.category_id);
         const subName = getSubcategoryName(t.category_id);
         const catSubName = getCategorySubcategory(t.category_id);
@@ -216,10 +216,10 @@ export default function FinalizeReconciliationModal({
           total_income: totalIncome,
           total_expense: totalExpense,
           balance: balance,
-          transactions_count: transactions.length,
+          transactions_count: relevantTransactions.length,
         },
         by_category: byCategory,
-        transactions: transactions.map((t) => ({
+        transactions: relevantTransactions.map((t) => ({
           date: t.date,
           description: t.description,
           amount: t.amount,
@@ -403,7 +403,7 @@ export default function FinalizeReconciliationModal({
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-600">Transações conciliadas</span>
                 <span className="font-medium text-gray-800">
-                  {transactions.length}
+                  {relevantTransactions.length}
                 </span>
               </div>
 
