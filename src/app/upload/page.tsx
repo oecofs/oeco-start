@@ -203,7 +203,7 @@ export default function UploadPage() {
       }
 
       if (insertError) {
-        setError("Erro ao importar transações.");
+        setError(`Erro: ${insertError.message} | Code: ${insertError.code} | Details: ${insertError.details || "N/A"} | Hint: ${insertError.hint || "N/A"}`);
         setImporting(false);
         return;
       }
