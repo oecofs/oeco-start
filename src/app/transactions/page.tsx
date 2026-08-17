@@ -22,6 +22,7 @@ type Transaction = {
   category_id: string | null;
   cost_center: string | null;
   is_reconciled: boolean;
+  is_internal_transfer: boolean;
   month_ref: string;
 };
 
