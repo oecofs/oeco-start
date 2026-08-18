@@ -79,13 +79,13 @@ export default function ReceivablesPage() {
       // Atualiza status de vencidos
       const today = new Date().toISOString().split("T")[0];
       const updated = (data || []).map((r) => {
-       // Migra status antigo "pending" para "open"
-        let status = r.status;
+        // Migra status antigo "pending" para "open"
+        let status: Receivable["status"] = r.status;
         if (status === "pending") status = "open";
         if ((status === "open" || status === "partial") && r.due_date < today && r.status !== "received") {
           status = "overdue";
         }
-        return { ...r, status: status as const, received_amount: r.received_amount || 0 };
+        return { ...r, status, received_amount: r.received_amount || 0 };
       });
       setReceivables(updated);
     }
