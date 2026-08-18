@@ -80,8 +80,7 @@ export default function ReceivablesPage() {
       const today = new Date().toISOString().split("T")[0];
       const updated = (data || []).map((r) => {
         // Migra status antigo "pending" para "open"
-        let status: Receivable["status"] = r.status;
-        if (status === "pending") status = "open";
+        let status: Receivable["status"] = (r.status === "pending" ? "open" : r.status) as Receivable["status"];
         if ((status === "open" || status === "partial") && r.due_date < today && r.status !== "received") {
           status = "overdue";
         }
