@@ -11,9 +11,11 @@ type Receivable = {
   id: string;
   client_name: string;
   description: string;
+  nf_number: string | null;
   amount: number;
+  received_amount: number;
   due_date: string;
-  status: "pending" | "received" | "overdue";
+  status: "open" | "partial" | "received" | "overdue";
   is_recurring: boolean;
   recurring_day: number | null;
   received_at: string | null;
@@ -24,6 +26,7 @@ type Receivable = {
 
 type FormData = {
   client_name: string;
+  nf_number: string;
   description: string;
   amount: string;
   due_date: string;
@@ -49,6 +52,7 @@ export default function ReceivablesPage() {
 
   const emptyForm: FormData = {
     client_name: "",
+    nf_number: "",
     description: "",
     amount: "",
     due_date: "",
@@ -75,10 +79,13 @@ export default function ReceivablesPage() {
       // Atualiza status de vencidos
       const today = new Date().toISOString().split("T")[0];
       const updated = (data || []).map((r) => {
-        if (r.status === "pending" && r.due_date < today) {
-          return { ...r, status: "overdue" as const };
+       // Migra status antigo "pending" para "open"
+        let status = r.status;
+        if (status === "pending") status = "open";
+        if ((status === "open" || status === "partial") && r.due_date < today && r.status !== "received") {
+          status = "overdue";
         }
-        return r;
+        return { ...r, status: status as const, received_amount: r.received_amount || 0 };
       });
       setReceivables(updated);
     }
@@ -103,6 +110,7 @@ export default function ReceivablesPage() {
     setEditingId(receivable.id);
     setFormData({
       client_name: receivable.client_name,
+      nf_number: receivable.nf_number || "",
       description: receivable.description,
       amount: String(receivable.amount),
       due_date: receivable.due_date,
@@ -152,10 +160,11 @@ export default function ReceivablesPage() {
 
     const payload = {
       client_name: formData.client_name.trim(),
+      nf_number: formData.nf_number.trim() || null,
       description: formData.description.trim(),
       amount,
       due_date: dueDate,
-      status: "pending",
+      status: editingId ? undefined : "open",
       is_recurring: formData.is_recurring,
       recurring_day: formData.is_recurring && formData.recurring_day ? parseInt(formData.recurring_day) : null,
       month_ref: monthRef,
@@ -190,20 +199,18 @@ export default function ReceivablesPage() {
   // Mark as received
   async function handleMarkReceived(receivable: Receivable) {
     const today = new Date().toISOString().split("T")[0];
-
     const { error } = await supabase
       .from("receivables")
       .update({
         status: "received",
+        received_amount: receivable.amount,
         received_at: today,
       })
       .eq("id", receivable.id);
-
     if (error) {
       setError("Erro ao marcar como recebido.");
       return;
     }
-
     setSuccess("Recebível marcado como recebido!");
     fetchReceivables();
   }
@@ -213,16 +220,15 @@ export default function ReceivablesPage() {
     const { error } = await supabase
       .from("receivables")
       .update({
-        status: "pending",
+        status: "open",
+        received_amount: 0,
         received_at: null,
       })
       .eq("id", receivable.id);
-
     if (error) {
       setError("Erro ao atualizar status.");
       return;
     }
-
     fetchReceivables();
   }
 
@@ -279,17 +285,16 @@ export default function ReceivablesPage() {
     // Aplicar filtro
   const filteredReceivables = receivables.filter((r) => {
     if (filter === "all") return true;
-    if (filter === "pending") return r.status === "pending";
+    if (filter === "pending") return r.status === "open";
     if (filter === "overdue") return r.status === "overdue";
-    if (filter === "received") return r.status === "received";
+    if (filter === "received") return r.status === "received" || r.status === "partial";
     return true;
   });
   const totalPending = receivables
     .filter((r) => r.status !== "received")
-    .reduce((sum, r) => sum + Number(r.amount), 0);
+    .reduce((sum, r) => sum + Number(r.amount) - Number(r.received_amount || 0), 0);
   const totalReceived = receivables
-    .filter((r) => r.status === "received")
-    .reduce((sum, r) => sum + Number(r.amount), 0);
+    .reduce((sum, r) => sum + Number(r.received_amount || 0), 0);
   const overdueCount = receivables.filter((r) => r.status === "overdue").length;
 
   return (
@@ -409,6 +414,11 @@ export default function ReceivablesPage() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {r.nf_number && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
+                        NF {r.nf_number}
+                      </span>
+                    )}
                     <span className="font-medium text-gray-800 truncate">
                       {r.description}
                     </span>
@@ -420,6 +430,10 @@ export default function ReceivablesPage() {
                     {r.status === "received" ? (
                       <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
                         ✓ Recebido
+                      </span>
+                    ) : r.status === "partial" ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                        ⏳ Parcial
                       </span>
                     ) : r.status === "overdue" ? (
                       <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
@@ -440,13 +454,27 @@ export default function ReceivablesPage() {
                       </span>
                     )}
                   </div>
+                  {(r.received_amount > 0 || r.status === "partial") && (
+                    <div className="flex items-center gap-3 mt-1 text-xs">
+                      <span className="text-gray-400">Valor: {formatCurrency(Number(r.amount))}</span>
+                      <span className="text-green-600">Recebido: {formatCurrency(Number(r.received_amount || 0))}</span>
+                      <span className="text-orange-600 font-medium">Saldo: {formatCurrency(Number(r.amount) - Number(r.received_amount || 0))}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Amount + actions */}
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="font-bold text-gray-800 text-sm md:text-base whitespace-nowrap">
-                    {formatCurrency(Number(r.amount))}
+                    {r.status === "partial" 
+                      ? formatCurrency(Number(r.amount) - Number(r.received_amount || 0))
+                      : formatCurrency(Number(r.amount))}
                   </span>
+                  {r.status === "partial" && (
+                    <span className="text-xs text-gray-400 line-through">
+                      {formatCurrency(Number(r.amount))}
+                    </span>
+                  )}
 
                   {/* Actions */}
                   <div className="flex items-center gap-1">
@@ -522,7 +550,19 @@ export default function ReceivablesPage() {
                   autoFocus
                 />
               </div>
-
+              {/* Número da NF */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Número da NF
+                </label>
+                <input
+                  type="text"
+                  value={formData.nf_number}
+                  onChange={(e) => setFormData({ ...formData, nf_number: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  placeholder="Ex: 12"
+                />
+              </div>
               {/* Descrição */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
