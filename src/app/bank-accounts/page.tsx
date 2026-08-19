@@ -263,11 +263,11 @@ export default function BankAccountsPage() {
 
       {showForm && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-[60] p-0 md:p-4"
           onClick={() => setShowForm(false)}
         >
           <div
-            className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-md p-4 md:p-6 max-h-[95vh] overflow-y-auto pb-8"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
