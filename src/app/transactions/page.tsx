@@ -230,8 +230,7 @@ export default function TransactionsPage() {
     const newReceivedAmount = currentReceived + transactionAmount;
     const remaining = Number(rec.amount) - newReceivedAmount;
     const newStatus = remaining <= 0 ? "received" : "partial";
-    const today = new Date().toISOString().split("T")[0];
-
+    // Usa a data da transação como data de recebimento
     await supabase.from("transactions").update({
       receivable_id: receivableId,
       is_reconciled: true,
@@ -240,7 +239,7 @@ export default function TransactionsPage() {
     await supabase.from("receivables").update({
       received_amount: newReceivedAmount,
       status: newStatus,
-      received_at: newStatus === "received" ? today : null,
+      received_at: newStatus === "received" ? trx.date : null,
     }).eq("id", receivableId);
 
     setTransactions((prev) => prev.map((t) =>
@@ -251,7 +250,7 @@ export default function TransactionsPage() {
 
     setAllReceivables((prev) => prev.map((r) =>
       r.id === receivableId
-        ? { ...r, received_amount: newReceivedAmount, status: newStatus, received_at: newStatus === "received" ? today : r.received_at }
+        ? { ...r, received_amount: newReceivedAmount, status: newStatus, received_at: newStatus === "received" ? trx.date : r.received_at }
         : r
     ));
 
