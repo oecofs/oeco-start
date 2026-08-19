@@ -13,6 +13,8 @@ type Transaction = {
   cost_center: string | null;
   is_reconciled: boolean;
   is_internal_transfer: boolean;
+  bank_account_id: string | null;
+  receivable_id: string | null;
   month_ref: string;
 };
 
@@ -27,7 +29,9 @@ type Receivable = {
   id: string;
   client_name: string;
   description: string;
+  nf_number: string | null;
   amount: number;
+  received_amount: number;
   due_date: string;
   status: string;
   is_recurring: boolean;
@@ -42,6 +46,7 @@ type Props = {
   transactions: Transaction[];
   categories: Category[];
   receivables: Receivable[];
+  bankAccounts?: { id: string; name: string }[];
 };
 
 export default function FinalizeReconciliationModal({
@@ -51,6 +56,7 @@ export default function FinalizeReconciliationModal({
   transactions,
   categories,
   receivables,
+  bankAccounts = [],
 }: Props) {
   const supabase = createClient();
   const wl = getWhiteLabelConfig();
@@ -208,6 +214,27 @@ export default function FinalizeReconciliationModal({
       );
   
       // 4. Montar payload completo do webhook
+      // Helper: nome da conta bancária
+      function getBankAccountName(accountId: string | null): string | null {
+        if (!accountId) return null;
+        const acc = bankAccounts.find((a) => a.id === accountId);
+        return acc ? acc.name : null;
+      }
+
+      // Helper: dados do recebível vinculado
+      function getLinkedReceivable(receivableId: string | null) {
+        if (!receivableId) return null;
+        const rec = receivables.find((r) => r.id === receivableId);
+        if (!rec) return null;
+        return {
+          nf_number: rec.nf_number || null,
+          client_name: rec.client_name,
+          receivable_amount: Number(rec.amount),
+          received_amount: Number(rec.received_amount || 0),
+          status: rec.status,
+        };
+      }
+
       const webhookPayload = {
         company_name: settingsData?.company_name || "Empresa",
         month_ref: monthRef,
@@ -227,17 +254,26 @@ export default function FinalizeReconciliationModal({
           subcategory: getSubcategoryName(t.category_id),
           category_subcategory: getCategorySubcategory(t.category_id),
           cost_center: t.cost_center || null,
+          bank_account: getBankAccountName(t.bank_account_id),
+          linked_receivable: getLinkedReceivable(t.receivable_id),
         })),
         receivables_summary: {
           total_pending: totalPendingReceivables,
           total_overdue: totalOverdueReceivables,
           overdue_items: overdueItems,
           due_this_week: dueThisWeek,
+          total_received: allReceivables
+            .filter((r) => r.status === "received" || r.status === "partial")
+            .reduce((sum, r) => sum + Number(r.received_amount || 0), 0),
+          partial_count: allReceivables.filter((r) => r.status === "partial").length,
         },
         receivables: allReceivables.map((r) => ({
           client_name: r.client_name,
+          nf_number: r.nf_number || null,
           description: r.description,
-          amount: r.amount,
+          amount: Number(r.amount),
+          received_amount: Number(r.received_amount || 0),
+          remaining_amount: Number(r.amount) - Number(r.received_amount || 0),
           due_date: r.due_date,
           status: r.status,
           is_recurring: r.is_recurring,
