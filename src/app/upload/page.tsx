@@ -49,7 +49,6 @@ export default function UploadPage() {
         .eq("is_active", true)
         .order("name");
       setBankAccounts(data || []);
-      }
     }
     fetchAccounts();
   }, [supabase]);
