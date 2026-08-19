@@ -651,7 +651,7 @@ export default function TransactionsPage() {
         )}
 
         <FinalizeReconciliationModal open={showFinalizeModal} onClose={() => setShowFinalizeModal(false)}
-          monthRef={selectedMonth} transactions={transactions} categories={categories} receivables={receivables} />
+          monthRef={selectedMonth} transactions={transactions} categories={categories} receivables={receivables} bankAccounts={bankAccounts} />
 
         {deleteConfirmId && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
