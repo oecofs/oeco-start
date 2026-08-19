@@ -24,6 +24,7 @@ type Transaction = {
   is_reconciled: boolean;
   is_internal_transfer: boolean;
   receivable_id: string | null;
+  bank_account_id: string | null;
   month_ref: string;
 };
 
@@ -47,13 +48,21 @@ export default function TransactionsPage() {
   const [transferMenuId, setTransferMenuId] = useState<string | null>(null);
   const [linkMenuId, setLinkMenuId] = useState<string | null>(null);
   const [allReceivables, setAllReceivables] = useState<any[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [showAccountFilter, setShowAccountFilter] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase.from("categories").select("*").order("name");
     setCategories(data || []);
     const { data: ccData } = await supabase.from("cost_centers").select("id, name").order("name");
     setCostCenters(ccData || []);
-  }, [supabase]);
+    const { data: accData } = await supabase.from("bank_accounts").select("id, name").eq("is_active", true).order("name");
+    setBankAccounts(accData || []);
+    if (accData && accData.length > 0 && selectedAccountIds.length === 0) {
+      setSelectedAccountIds(accData.map((a: { id: string }) => a.id));
+    }
+  }, [supabase, selectedAccountIds.length]);
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -83,7 +92,8 @@ export default function TransactionsPage() {
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
   const filteredTransactions = transactions.filter((t) =>
-    t.description.toLowerCase().includes(searchTerm.toLowerCase())
+    t.description.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (selectedAccountIds.length === 0 || selectedAccountIds.includes(t.bank_account_id || ""))
   );
 
   const allReconciled = transactions.length > 0 && transactions.every((t) => t.is_reconciled || t.is_internal_transfer);
@@ -291,14 +301,86 @@ export default function TransactionsPage() {
     const [year, month, day] = dateStr.split("-");
     return `${day}/${month}/${year}`;
   }
+  
+  function toggleAccount(accountId: string) {
+    setSelectedAccountIds((prev) =>
+      prev.includes(accountId)
+        ? prev.filter((id) => id !== accountId)
+        : [...prev, accountId]
+    );
+  }
+  
+  function selectAllAccounts() {
+    setSelectedAccountIds(bankAccounts.map((a) => a.id));
+  }
+  
+  function clearAccountFilter() {
+    setSelectedAccountIds([]);
+  }
+  
+  function getAccountName(accountId: string | null): string {
+    if (!accountId) return "—";
+    const acc = bankAccounts.find((a) => a.id === accountId);
+    return acc ? acc.name : "—";
+  }
 
   return (
     <Navigation>
       <div className="p-4 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Transações</h1>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
             <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
+            {bankAccounts.length > 1 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowAccountFilter(!showAccountFilter)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent whitespace-nowrap flex items-center gap-1"
+                >
+                  🏦 Contas
+                  {selectedAccountIds.length < bankAccounts.length && (
+                    <span className="text-xs text-gray-400">
+                      ({selectedAccountIds.length}/{bankAccounts.length})
+                    </span>
+                  )}
+                </button>
+                {showAccountFilter && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowAccountFilter(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[220px]">
+                      {bankAccounts.map((acc) => (
+                        <label
+                          key={acc.id}
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedAccountIds.includes(acc.id)}
+                            onChange={() => toggleAccount(acc.id)}
+                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          {acc.name}
+                        </label>
+                      ))}
+                      <div className="border-t border-gray-100 mt-1 pt-1 flex gap-1 px-3 py-1">
+                        <button
+                          onClick={selectAllAccounts}
+                          className="text-xs text-primary hover:bg-primary/10 px-2 py-1 rounded"
+                        >
+                          Selecionar todas
+                        </button>
+                        <button
+                          onClick={clearAccountFilter}
+                          className="text-xs text-gray-400 hover:bg-gray-100 px-2 py-1 rounded"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar..."
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" />
@@ -348,6 +430,7 @@ export default function TransactionsPage() {
                     <th className="py-3 px-2 md:px-3 font-medium whitespace-nowrap">Subcategoria</th>
                     <th className="py-3 px-2 md:px-3 font-medium whitespace-nowrap">C. Custo</th>
                     <th className="py-3 px-2 md:px-3 font-medium whitespace-nowrap">Status</th>
+                    <th className="py-3 px-2 md:px-3 font-medium whitespace-nowrap">Conta</th>
                     <th className="py-3 px-2 md:px-3 font-medium whitespace-nowrap">Ações</th>
                   </tr>
                 </thead>
@@ -537,6 +620,9 @@ export default function TransactionsPage() {
                           <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${trx.is_reconciled ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
                             {trx.is_reconciled ? "Conciliada" : "Pendente"}
                           </span>
+                        </td>
+                        <td className="py-2 px-2 md:px-3 text-xs text-gray-500 whitespace-nowrap">
+                          {getAccountName(trx.bank_account_id)}
                         </td>
                         <td className="py-2 px-2 md:px-3 relative">
                           <button onClick={() => setOpenMenuId(openMenuId === trx.id ? null : trx.id)}
