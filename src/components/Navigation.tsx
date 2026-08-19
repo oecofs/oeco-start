@@ -8,6 +8,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "📊" },
   { href: "/transactions", label: "Transações", icon: "📋" },
   { href: "/receivables", label: "Recebíveis", icon: "💰" },
+  { href: "/bank-accounts", label: "Contas", icon: "🏦" },
   { href: "/settings", label: "Config", icon: "⚙️" },
 ];
 
