@@ -23,6 +23,7 @@ type Transaction = {
   cost_center: string | null;
   is_reconciled: boolean;
   is_internal_transfer: boolean;
+  receivable_id: string | null;
   month_ref: string;
 };
 
@@ -44,6 +45,8 @@ export default function TransactionsPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [transferMenuId, setTransferMenuId] = useState<string | null>(null);
+  const [linkMenuId, setLinkMenuId] = useState<string | null>(null);
+  const [allReceivables, setAllReceivables] = useState<any[]>([]);
 
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase.from("categories").select("*").order("name");
@@ -66,6 +69,13 @@ export default function TransactionsPage() {
       .eq("month_ref", selectedMonth)
       .eq("is_active", true);
     setReceivables(recData || []);
+    // Busca todos os recebíveis ativos para o dropdown de vínculo
+    const { data: allRecData } = await supabase
+      .from("receivables")
+      .select("*")
+      .eq("is_active", true)
+      .order("due_date", { ascending: true });
+    setAllReceivables(allRecData || []);
     setLoading(false);
   }, [supabase, selectedMonth]);
 
@@ -196,6 +206,82 @@ export default function TransactionsPage() {
       }).eq("id", transactionId);
     }
     setTransferMenuId(null);
+  }
+
+  const openReceivables = allReceivables.filter((r) => r.status !== "received");
+
+  async function handleLinkReceivable(transactionId: string, receivableId: string) {
+    const trx = transactions.find((t) => t.id === transactionId);
+    const rec = allReceivables.find((r) => r.id === receivableId);
+    if (!trx || !rec) return;
+
+    const transactionAmount = Math.abs(Number(trx.amount));
+    const currentReceived = Number(rec.received_amount || 0);
+    const newReceivedAmount = currentReceived + transactionAmount;
+    const remaining = Number(rec.amount) - newReceivedAmount;
+    const newStatus = remaining <= 0 ? "received" : "partial";
+    const today = new Date().toISOString().split("T")[0];
+
+    await supabase.from("transactions").update({
+      receivable_id: receivableId,
+      is_reconciled: true,
+    }).eq("id", transactionId);
+
+    await supabase.from("receivables").update({
+      received_amount: newReceivedAmount,
+      status: newStatus,
+      received_at: newStatus === "received" ? today : null,
+    }).eq("id", receivableId);
+
+    setTransactions((prev) => prev.map((t) =>
+      t.id === transactionId
+        ? { ...t, receivable_id: receivableId, is_reconciled: true }
+        : t
+    ));
+
+    setAllReceivables((prev) => prev.map((r) =>
+      r.id === receivableId
+        ? { ...r, received_amount: newReceivedAmount, status: newStatus, received_at: newStatus === "received" ? today : r.received_at }
+        : r
+    ));
+
+    setLinkMenuId(null);
+  }
+
+  async function handleUnlinkReceivable(transactionId: string) {
+    const trx = transactions.find((t) => t.id === transactionId);
+    if (!trx || !trx.receivable_id) return;
+
+    const receivableId = trx.receivable_id;
+    const rec = allReceivables.find((r) => r.id === receivableId);
+    const transactionAmount = Math.abs(Number(trx.amount));
+    const currentReceived = rec ? Number(rec.received_amount || 0) : 0;
+    const newReceivedAmount = Math.max(0, currentReceived - transactionAmount);
+    const newStatus = newReceivedAmount === 0 ? "open" : "partial";
+
+    await supabase.from("transactions").update({
+      receivable_id: null,
+    }).eq("id", transactionId);
+
+    await supabase.from("receivables").update({
+      received_amount: newReceivedAmount,
+      status: newStatus,
+      received_at: null,
+    }).eq("id", receivableId);
+
+    setTransactions((prev) => prev.map((t) =>
+      t.id === transactionId
+        ? { ...t, receivable_id: null }
+        : t
+    ));
+
+    setAllReceivables((prev) => prev.map((r) =>
+      r.id === receivableId
+        ? { ...r, received_amount: newReceivedAmount, status: newStatus, received_at: null }
+        : r
+    ));
+
+    setLinkMenuId(null);
   }
   
   function formatCurrency(value: number): string {
@@ -337,7 +423,7 @@ export default function TransactionsPage() {
                           )}
                         </td>
                         <td className="py-2 px-2 md:px-3 text-gray-600 whitespace-nowrap">{formatDate(trx.date)}</td>
-                        <td className="py-2 px-2 md:px-3 text-gray-700">
+                        <td className="py-2 px-2 md:px-3 text-gray-700 relative">
                           {editingId === trx.id ? (
                             <div className="flex gap-1">
                               <input type="text" value={editDescription} onChange={(e) => setEditDescription(e.target.value)}
@@ -346,10 +432,73 @@ export default function TransactionsPage() {
                               <button onClick={() => handleSaveDescription(trx.id)} className="text-xs text-primary hover:bg-primary/10 px-1.5 py-0.5 rounded">✓</button>
                             </div>
                           ) : (
-                            <span className="cursor-text hover:bg-gray-100 px-1 py-0.5 rounded"
-                              onClick={() => { setEditingId(trx.id); setEditDescription(trx.description); }}>
-                              {trx.description}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="cursor-text hover:bg-gray-100 px-1 py-0.5 rounded"
+                                onClick={() => { setEditingId(trx.id); setEditDescription(trx.description); }}>
+                                {trx.description}
+                              </span>
+                              {trx.receivable_id ? (
+                                (() => {
+                                  const linkedRec = allReceivables.find((r) => r.id === trx.receivable_id);
+                                  if (!linkedRec) return null;
+                                  return (
+                                    <button
+                                      onClick={() => handleUnlinkReceivable(trx.id)}
+                                      className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center gap-1 whitespace-nowrap"
+                                      title="Clique para desvincular"
+                                    >
+                                      {linkedRec.nf_number ? `NF ${linkedRec.nf_number}` : linkedRec.client_name} ✕
+                                    </button>
+                                  );
+                                })()
+                              ) : trx.amount > 0 && !trx.is_internal_transfer ? (
+                                <>
+                                  <button
+                                    onClick={() => setLinkMenuId(linkMenuId === trx.id ? null : trx.id)}
+                                    className="text-xs text-indigo-500 hover:bg-indigo-50 px-1.5 py-0.5 rounded"
+                                    title="Vincular recebível"
+                                  >
+                                    🔗
+                                  </button>
+                                  {linkMenuId === trx.id && (
+                                    <>
+                                      <div className="fixed inset-0 z-10" onClick={() => setLinkMenuId(null)} />
+                                      <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[280px] max-h-[300px] overflow-y-auto">
+                                        {openReceivables.length === 0 ? (
+                                          <div className="px-3 py-2 text-sm text-gray-400">Nenhum recebível em aberto</div>
+                                        ) : (
+                                          openReceivables.map((r) => {
+                                            const remaining = Number(r.amount) - Number(r.received_amount || 0);
+                                            return (
+                                              <button
+                                                key={r.id}
+                                                onClick={() => handleLinkReceivable(trx.id, r.id)}
+                                                className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                                              >
+                                                <div className="flex items-center gap-2">
+                                                  {r.nf_number && (
+                                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium whitespace-nowrap">
+                                                      NF {r.nf_number}
+                                                    </span>
+                                                  )}
+                                                  <span className="font-medium">{r.client_name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
+                                                  <span>{formatCurrency(remaining)} a receber</span>
+                                                  {r.status === "partial" && (
+                                                    <span className="text-orange-500">parcial</span>
+                                                  )}
+                                                </div>
+                                              </button>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                </>
+                              ) : null}
+                            </div>
                           )}
                         </td>
                         <td className={`py-2 px-2 md:px-3 text-right font-medium whitespace-nowrap ${trx.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
