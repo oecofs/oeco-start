@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { parseOFX, type ParsedTransaction } from "@/lib/parsers/ofx";
@@ -38,7 +38,23 @@ export default function UploadPage() {
     amountColumn: null,
   });
 
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    useEffect(() => {
+    async function fetchAccounts() {
+      const { data } = await supabase
+        .from("bank_accounts")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+      setBankAccounts(data || []);
+      if (data && data.length === 1) {
+        setSelectedAccountId(data[0].id);
+      }
+    }
+    fetchAccounts();
+  }, [supabase]);
 
   function handleFileSelect() {
     fileInputRef.current?.click();
@@ -193,6 +209,7 @@ export default function UploadPage() {
               dedupe_hash: t.dedupe_hash,
               is_reconciled: false,
               user_id: user?.id,
+              bank_account_id: selectedAccountId,
             })),
             { onConflict: "dedupe_hash", ignoreDuplicates: true }
           );
@@ -345,6 +362,35 @@ export default function UploadPage() {
 
         {transactions.length > 0 && !needsManualMapping && (
           <div className="space-y-4">
+            {bankAccounts.length > 1 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">
+                  Para qual conta é este extrato?
+                </h3>
+                <div className="space-y-2">
+                  {bankAccounts.map((acc) => (
+                    <label
+                      key={acc.id}
+                      className={`flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedAccountId === acc.id
+                          ? "border-primary bg-primary/5"
+                          : "border-gray-200 hover:bg-gray-50"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="bankAccount"
+                        value={acc.id}
+                        checked={selectedAccountId === acc.id}
+                        onChange={(e) => setSelectedAccountId(e.target.value)}
+                        className="w-4 h-4 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm font-medium text-gray-700">{acc.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -384,9 +430,16 @@ export default function UploadPage() {
                 </p>
               )}
               <div className="mt-6 flex justify-end">
-                <button onClick={handleImport} disabled={importing}
-                  className="px-6 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  {importing ? "Importando..." : `Importar ${transactions.length} transações`}
+                <button
+                  onClick={handleImport}
+                  disabled={importing || (bankAccounts.length > 1 && !selectedAccountId)}
+                  className="px-6 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {importing
+                    ? "Importando..."
+                    : bankAccounts.length > 1 && !selectedAccountId
+                    ? "Selecione uma conta para importar"
+                    : `Importar ${transactions.length} transações`}
                 </button>
               </div>
             </div>
