@@ -434,7 +434,9 @@ export default function TransactionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransactions.map((trx) => {
+                  {filteredTransactions.map((trx, index) => {
+                    const isNearBottom = index >= filteredTransactions.length - 3;
+                    const dropdownPos = isNearBottom ? "bottom-full mb-1" : "top-full mt-1";
                     const type = trx.amount >= 0 ? "income" : "expense";
                     const cats = getCategoriesByType(type);
                     const parentId = getParentCategoryId(trx.category_id);
@@ -468,7 +470,7 @@ export default function TransactionsPage() {
                           {transferMenuId === trx.id && (
                             <>
                               <div className="fixed inset-0 z-10" onClick={() => setTransferMenuId(null)} />
-                              <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[190px]">
+                              <div className={`absolute left-0 ${dropdownPos} z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[190px]`}>
                                 {!trx.is_internal_transfer && (
                                   <button
                                     onClick={() => handleToggleTransfer(trx.id, true)}
@@ -545,7 +547,7 @@ export default function TransactionsPage() {
                                   {linkMenuId === trx.id && (
                                     <>
                                       <div className="fixed inset-0 z-10" onClick={() => setLinkMenuId(null)} />
-                                      <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[280px] max-h-[300px] overflow-y-auto">
+                                      <div className={`absolute left-0 ${dropdownPos} z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[280px] max-h-[300px] overflow-y-auto`}>
                                         {openReceivables.length === 0 ? (
                                           <div className="px-3 py-2 text-sm text-gray-400">Nenhum recebível em aberto</div>
                                         ) : (
@@ -629,7 +631,7 @@ export default function TransactionsPage() {
                           {openMenuId === trx.id && (
                             <>
                               <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                              <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+                              <div className={`absolute right-0 ${dropdownPos} z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]`}>
                                 <button onClick={() => { setDeleteConfirmId(trx.id); setOpenMenuId(null); }}
                                   className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">🗑 Deletar transação</button>
                               </div>
