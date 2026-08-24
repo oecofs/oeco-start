@@ -1,7 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import Navigation from "@/components/Navigation";
 
 type BankAccount = {
@@ -27,6 +29,7 @@ type FormData = {
 
 export default function BankAccountsPage() {
   const supabase = createClient();
+  const { selectedCompany } = useCompany();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -45,18 +48,26 @@ export default function BankAccountsPage() {
   const [formData, setFormData] = useState<FormData>(emptyForm);
 
   const fetchAccounts = useCallback(async () => {
+    if (!selectedCompany) {
+      setAccounts([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const { data, error } = await supabase
       .from("bank_accounts")
       .select("*")
+      .eq("company_id", selectedCompany.id)
       .order("created_at", { ascending: true });
+
     if (error) {
       setError("Erro ao carregar contas.");
     } else {
       setAccounts(data || []);
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, selectedCompany]);
 
   useEffect(() => {
     fetchAccounts();
@@ -94,10 +105,15 @@ export default function BankAccountsPage() {
       return;
     }
 
+    if (!selectedCompany) {
+      setError("Nenhuma empresa selecionada.");
+      return;
+    }
+
     const amountStr = formData.initial_balance.replace(/\./g, "").replace(",", ".");
     const amount = Number(amountStr) || 0;
 
-    const payload = {
+    const payload: any = {
       name: formData.name.trim(),
       bank_name: formData.bank_name.trim() || null,
       agency: formData.agency.trim() || null,
@@ -105,6 +121,7 @@ export default function BankAccountsPage() {
       initial_balance: amount,
       initial_balance_date: formData.initial_balance_date,
       is_active: true,
+      company_id: selectedCompany.id,
     };
 
     if (editingId) {
@@ -118,7 +135,15 @@ export default function BankAccountsPage() {
       }
       setSuccess("Conta atualizada com sucesso!");
     } else {
-      const { error } = await supabase.from("bank_accounts").insert(payload);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const { error } = await supabase.from("bank_accounts").insert({
+        ...payload,
+        user_id: user?.id,
+      });
+
       if (error) {
         setError("Erro ao criar conta.");
         return;
@@ -161,7 +186,15 @@ export default function BankAccountsPage() {
     <Navigation>
       <div className="p-4 md:p-8 max-w-4xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Contas Bancárias</h1>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/settings"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-600 hover:text-primary bg-slate-100 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <span>←</span> Configurações
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-800">Contas Bancárias</h1>
+          </div>
           <button
             onClick={handleNew}
             className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark transition-colors whitespace-nowrap"

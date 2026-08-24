@@ -1,3 +1,5 @@
+import { sanitizeFormulaInjection } from "@/lib/security";
+
 //
 // Parser de OFX (Open Financial Exchange)
 // Lê arquivos .ofx exportados por bancos brasileiros
@@ -112,7 +114,7 @@ function parseStmttrn(block: string): ParsedTransaction | null {
 
     return {
       date,
-      description: memo.trim(),
+      description: sanitizeFormulaInjection(memo.trim()),
       amount,
       fitid: fitid || `${date}-${memo.substring(0, 20)}-${Math.random().toString(36).substring(7)}`,
       month_ref,

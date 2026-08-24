@@ -1,3 +1,5 @@
+import { sanitizeFormulaInjection } from "@/lib/security";
+
 //
 // Parser de CSV (Fallback)
 // Lê arquivos .csv exportados por bancos brasileiros
@@ -245,7 +247,7 @@ export function parseCSV(
   for (let i = 1; i < lines.length; i++) {
     const columns = parseCSVLine(lines[i], delimiter);
     const dateStr = columns[mapping.dateColumn] || "";
-    const description = (columns[mapping.descriptionColumn] || "").trim();
+    const description = sanitizeFormulaInjection((columns[mapping.descriptionColumn] || "").trim());
     const amountStr = columns[mapping.amountColumn] || "";
 
     const date = normalizeDate(dateStr);

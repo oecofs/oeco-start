@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 type CostCenter = {
   id: string;
@@ -10,6 +11,7 @@ type CostCenter = {
 
 export default function CostCentersManager() {
   const supabase = createClient();
+  const { selectedCompany } = useCompany();
   const [centers, setCenters] = useState<CostCenter[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -19,10 +21,17 @@ export default function CostCentersManager() {
   const [success, setSuccess] = useState("");
 
   const fetchCenters = useCallback(async () => {
+    if (!selectedCompany) {
+      setCenters([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const { data, error } = await supabase
       .from("cost_centers")
       .select("*")
+      .eq("company_id", selectedCompany.id)
       .order("name");
 
     if (error) {
@@ -31,7 +40,7 @@ export default function CostCentersManager() {
       setCenters(data || []);
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, selectedCompany]);
 
   useEffect(() => {
     fetchCenters();
@@ -39,12 +48,20 @@ export default function CostCentersManager() {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!newName.trim() || !selectedCompany) return;
     setError("");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     const { error } = await supabase
       .from("cost_centers")
-      .insert({ name: newName.trim() });
+      .insert({
+        name: newName.trim(),
+        company_id: selectedCompany.id,
+        user_id: user?.id,
+      });
 
     if (error) {
       setError("Erro ao criar centro de custo. Talvez já exista.");

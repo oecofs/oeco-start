@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import { parseOFX, type ParsedTransaction } from "@/lib/parsers/ofx";
 import { parseCSV, type ColumnMapping } from "@/lib/parsers/csv";
 import * as XLSX from "xlsx";
@@ -21,6 +22,7 @@ function generateDedupeHash(date: string, description: string, amount: number, m
 export default function UploadPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { selectedCompany } = useCompany();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [transactions, setTransactions] = useState<ParsedTransaction[]>([]);
   const [fileName, setFileName] = useState("");
@@ -41,17 +43,23 @@ export default function UploadPage() {
   const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
-    useEffect(() => {
+
+  useEffect(() => {
     async function fetchAccounts() {
+      if (!selectedCompany) {
+        setBankAccounts([]);
+        return;
+      }
       const { data } = await supabase
         .from("bank_accounts")
         .select("id, name")
+        .eq("company_id", selectedCompany.id)
         .eq("is_active", true)
         .order("name");
       setBankAccounts(data || []);
     }
     fetchAccounts();
-  }, [supabase]);
+  }, [supabase, selectedCompany]);
 
   function handleFileSelect() {
     fileInputRef.current?.click();
@@ -159,11 +167,17 @@ export default function UploadPage() {
       const allMonthRefs = transactionsWithHash.map((t) => t.month_ref);
       const monthRefs = allMonthRefs.filter((v, i, a) => a.indexOf(v) === i);
 
-      // Buscar dedupe_hashes existentes no banco
-      const { data: existing } = await supabase
+      // Buscar dedupe_hashes existentes no banco para a empresa ativa
+      let query = supabase
         .from("transactions")
         .select("dedupe_hash, fitid")
         .in("month_ref", monthRefs);
+
+      if (selectedCompany) {
+        query = query.eq("company_id", selectedCompany.id);
+      }
+
+      const { data: existing } = await query;
 
       const existingHashes = new Set(
         (existing || []).map((t) => t.dedupe_hash).filter(Boolean)
@@ -206,6 +220,7 @@ export default function UploadPage() {
               dedupe_hash: t.dedupe_hash,
               is_reconciled: false,
               user_id: user?.id,
+              company_id: selectedCompany?.id,
               bank_account_id: selectedAccountId,
             })),
             { onConflict: "dedupe_hash", ignoreDuplicates: true }

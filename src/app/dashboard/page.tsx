@@ -5,11 +5,13 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import Navigation from "@/components/Navigation";
 import MonthSelector from "@/components/MonthSelector";
 
 export default function DashboardPage() {
   const supabase = createClient();
+  const { selectedCompany } = useCompany();
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -42,12 +44,26 @@ export default function DashboardPage() {
     
   // Buscar dados do mês
   const fetchDashboardData = useCallback(async () => {
+    if (!selectedCompany) {
+      setTotalIncome(0);
+      setTotalExpense(0);
+      setTransactionsCount(0);
+      setReconciledCount(0);
+      setPendingReceivables(0);
+      setPendingReceivablesCount(0);
+      setOverdueReceivables(0);
+      setAccountBalances([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     // 1. Transações do mês
     const { data: transactions } = await supabase
       .from("transactions")
       .select("amount, is_reconciled")
+      .eq("company_id", selectedCompany.id)
       .eq("month_ref", selectedMonth);
 
     const trxs = transactions || [];
@@ -71,6 +87,7 @@ export default function DashboardPage() {
     const { data: receivables } = await supabase
       .from("receivables")
       .select("amount, status, due_date")
+      .eq("company_id", selectedCompany.id)
       .eq("month_ref", selectedMonth)
       .eq("is_active", true);
 
@@ -93,6 +110,7 @@ export default function DashboardPage() {
     const { data: accounts } = await supabase
       .from("bank_accounts")
       .select("id, name, initial_balance, initial_balance_date, is_active")
+      .eq("company_id", selectedCompany.id)
       .eq("is_active", true)
       .order("name");
 
@@ -101,6 +119,7 @@ export default function DashboardPage() {
       const { data: allTrxs } = await supabase
         .from("transactions")
         .select("amount, is_reconciled, bank_account_id, month_ref")
+        .eq("company_id", selectedCompany.id)
         .lte("month_ref", selectedMonth);
 
       const allTransactions = allTrxs || [];
@@ -131,7 +150,7 @@ export default function DashboardPage() {
     }
 
     setLoading(false);
-  }, [supabase, selectedMonth]);
+  }, [supabase, selectedMonth, selectedCompany]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -333,11 +352,32 @@ export default function DashboardPage() {
               </div>
             )}
             
+            {/* Card de Destaque — Relatórios Financeiros (BI) */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6 mb-6 shadow-sm hover:border-primary/40 transition-colors">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h2 className="text-base md:text-lg font-bold text-gray-800">
+                    Relatórios Financeiros
+                  </h2>
+                  <p className="text-xs md:text-sm text-gray-500 leading-relaxed max-w-xl">
+                    Explore análises verticais e horizontais (AV/AH), gráficos temporais, composição de receitas/despesas, etc.
+                  </p>
+                </div>
+                <Link
+                  href="/reports"
+                  className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white font-medium text-xs md:text-sm px-4 py-2.5 rounded-lg shadow-sm transition-colors whitespace-nowrap flex-shrink-0"
+                >
+                  <span>Acessar Relatórios</span>
+                  <span className="text-base">→</span>
+                </Link>
+              </div>
+            </div>
+
             {/* Link para transações */}
             {transactionsCount > 0 && (
               <Link
                 href="/transactions"
-                className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-primary hover:bg-primary/5 transition-colors"
+                className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-primary hover:bg-primary/5 transition-colors mb-6"
               >
                 <div className="flex items-center justify-between">
                   <div>

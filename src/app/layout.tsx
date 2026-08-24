@@ -27,6 +27,8 @@ export const viewport: Viewport = {
   themeColor: "#1e40af",
 };
 
+import { CompanyProvider } from "@/contexts/CompanyContext";
+
 export default function RootLayout({
   children,
 }: {
@@ -34,7 +36,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <CompanyProvider>{children}</CompanyProvider>
+      </body>
     </html>
   );
 }

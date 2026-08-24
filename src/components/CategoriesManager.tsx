@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 type Category = {
   id: string;
@@ -22,6 +23,7 @@ type CategoryFormData = {
 
 export default function CategoriesManager() {
   const supabase = createClient();
+  const { selectedCompany } = useCompany();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -48,13 +50,22 @@ export default function CategoriesManager() {
 
   // Fetch all categories
   const fetchCategories = useCallback(async () => {
+    if (!selectedCompany) {
+      setCategories([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("categories")
       .select("*")
+      .eq("company_id", selectedCompany.id)
       .order("type", { ascending: true })
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
+
+    const { data, error } = await query;
 
     if (error) {
       setError("Erro ao carregar categorias.");
@@ -62,7 +73,7 @@ export default function CategoriesManager() {
       setCategories(data || []);
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, selectedCompany]);
 
   useEffect(() => {
     fetchCategories();
@@ -109,12 +120,18 @@ export default function CategoriesManager() {
       return;
     }
 
-    const payload = {
+    if (!selectedCompany) {
+      setError("Nenhuma empresa selecionada.");
+      return;
+    }
+
+    const payload: any = {
       name: formData.name.trim(),
       type: formData.type,
       cost_center: formData.cost_center.trim() || null,
       parent_id: formData.parent_id,
       sort_order: 0,
+      company_id: selectedCompany.id,
     };
 
     if (editingId) {
@@ -129,7 +146,14 @@ export default function CategoriesManager() {
       }
       setSuccess("Categoria atualizada com sucesso!");
     } else {
-      const { error } = await supabase.from("categories").insert(payload);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const { error } = await supabase.from("categories").insert({
+        ...payload,
+        user_id: user?.id,
+      });
 
       if (error) {
         setError("Erro ao criar categoria.");

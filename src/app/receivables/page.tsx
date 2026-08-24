@@ -4,11 +4,13 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import Navigation from "@/components/Navigation";
 import MonthSelector from "@/components/MonthSelector";
 
 type Receivable = {
   id: string;
+  name?: string;
   client_name: string;
   description: string;
   nf_number: string | null;
@@ -36,6 +38,7 @@ type FormData = {
 
 export default function ReceivablesPage() {
   const supabase = createClient();
+  const { selectedCompany } = useCompany();
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -64,11 +67,18 @@ export default function ReceivablesPage() {
 
   // Fetch receivables for selected month
   const fetchReceivables = useCallback(async () => {
+    if (!selectedCompany) {
+      setReceivables([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     const { data, error } = await supabase
       .from("receivables")
       .select("*")
+      .eq("company_id", selectedCompany.id)
       .eq("month_ref", selectedMonth)
       .eq("is_active", true)
       .order("due_date", { ascending: true });
@@ -89,7 +99,7 @@ export default function ReceivablesPage() {
       setReceivables(updated);
     }
     setLoading(false);
-  }, [supabase, selectedMonth]);
+  }, [supabase, selectedMonth, selectedCompany]);
 
   useEffect(() => {
     fetchReceivables();
@@ -143,6 +153,11 @@ export default function ReceivablesPage() {
       return;
     }
 
+    if (!selectedCompany) {
+      setError("Nenhuma empresa selecionada.");
+      return;
+    }
+
     const amount = Number(formData.amount);
     let dueDate = formData.due_date;
     let monthRef = selectedMonth;
@@ -157,7 +172,7 @@ export default function ReceivablesPage() {
       monthRef = dueDate.substring(0, 7);
     }
 
-    const payload = {
+    const payload: any = {
       client_name: formData.client_name.trim(),
       nf_number: formData.nf_number.trim() || null,
       description: formData.description.trim(),
@@ -168,6 +183,7 @@ export default function ReceivablesPage() {
       recurring_day: formData.is_recurring && formData.recurring_day ? parseInt(formData.recurring_day) : null,
       month_ref: monthRef,
       is_active: true,
+      company_id: selectedCompany.id,
     };
 
     if (editingId) {
@@ -182,7 +198,14 @@ export default function ReceivablesPage() {
       }
       setSuccess("Recebível atualizado com sucesso!");
     } else {
-      const { error } = await supabase.from("receivables").insert(payload);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const { error } = await supabase.from("receivables").insert({
+        ...payload,
+        user_id: user?.id,
+      });
 
       if (error) {
         setError("Erro ao criar recebível.");
