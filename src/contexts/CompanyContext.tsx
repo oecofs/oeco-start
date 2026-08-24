@@ -79,15 +79,23 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        setIsMaster(false);
+        setUserRole(null);
+        setCompanies([]);
+        setSelectedCompany(null);
         setLoading(false);
         return;
       }
 
-      // 1. Busca os vínculos do usuário na tabela user_companies
-      const { data: userComps } = await supabase
+      // 1. Busca os vínculos e permissões do usuário logado na tabela user_companies
+      const { data: userComps, error: userCompsErr } = await supabase
         .from("user_companies")
         .select("company_id, role")
         .eq("user_id", user.id);
+
+      if (userCompsErr) {
+        console.error("Erro ao buscar vínculos do usuário:", userCompsErr);
+      }
 
       const hasMasterRole = (userComps || []).some((uc) => uc.role === "master");
       setIsMaster(hasMasterRole);
@@ -95,8 +103,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       let availableCompanies: Company[] = [];
 
       if (hasMasterRole) {
+        // Usuário Master Global: pode ver e gerenciar todas as empresas
         setUserRole("master");
-        // Master tem acesso a todas as empresas cadastradas
         const { data: allComps } = await supabase
           .from("companies")
           .select("*")
@@ -107,7 +115,10 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
           role: "master",
         }));
       } else if (userComps && userComps.length > 0) {
-        setUserRole(userComps[0].role as any);
+        // Usuário comum (Admin, Operador ou Visualizador de empresa específica)
+        const primaryRole = (userComps[0].role as any) || "admin";
+        setUserRole(primaryRole);
+
         const compIds = userComps.map((uc) => uc.company_id);
         const { data: userCompsList } = await supabase
           .from("companies")
@@ -119,34 +130,14 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
           const matchingUc = userComps.find((uc) => uc.company_id === c.id);
           return {
             ...c,
-            role: matchingUc?.role || "admin",
+            role: matchingUc?.role || primaryRole,
           };
         });
-      }
-
-      // Fallback: se a tabela de empresas ainda estiver vazia ou sem vínculos,
-      // busca se existe alguma empresa na tabela ou utiliza as configurações da empresa
-      if (availableCompanies.length === 0) {
-        const { data: fallbackComps } = await supabase.from("companies").select("*").limit(10);
-        if (fallbackComps && fallbackComps.length > 0) {
-          availableCompanies = fallbackComps.map((c) => ({ ...c, role: "master" }));
-          setIsMaster(true);
-          setUserRole("master");
-        } else {
-          // Fallback resiliente: busca nome em settings
-          const { data: settingsData } = await supabase.from("settings").select("company_name").limit(1).maybeSingle();
-          const fallbackName = settingsData?.company_name || "Minha Empresa";
-          availableCompanies = [
-            {
-              id: "default-company",
-              name: fallbackName,
-              is_active: true,
-              role: "master",
-            },
-          ];
-          setIsMaster(true);
-          setUserRole("master");
-        }
+      } else {
+        // Usuário sem vínculos cadastrados: NUNCA conceder privilégio Master!
+        setIsMaster(false);
+        setUserRole("viewer");
+        availableCompanies = [];
       }
 
       setCompanies(availableCompanies);
@@ -192,7 +183,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) return null;
+      if (!user || !isMaster) return null;
 
       // 1. Cria a empresa
       const { data: newCompany, error: compError } = await supabase
@@ -210,60 +201,86 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
 
-      // 2. Vincula o usuário atual à nova empresa
+      // 2. Vincula o usuário atual como Master na empresa
       await supabase.from("user_companies").insert({
         user_id: user.id,
         company_id: newCompany.id,
-        role: isMaster ? "master" : "admin",
+        role: "master",
       });
 
-      // 3. Clona automaticamente as categorias padrão para a nova empresa
+      // 3. Clona categorias padrão para a nova empresa
       try {
-        await supabase.rpc("seed_company_default_categories", {
+        const { error: rpcError } = await supabase.rpc("seed_company_default_categories", {
           p_company_id: newCompany.id,
           p_user_id: user.id,
         });
-      } catch {
-        // Fallback: inserção direta via client caso a RPC não tenha sido executada no banco
-        for (let i = 0; i < DEFAULT_CATEGORIES_TEMPLATE.length; i++) {
-          const group = DEFAULT_CATEGORIES_TEMPLATE[i];
-          const { data: parentCat } = await supabase
-            .from("categories")
-            .insert({
-              name: group.name,
-              type: group.type,
-              parent_id: null,
-              sort_order: i + 1,
-              user_id: user.id,
-              company_id: newCompany.id,
-            })
-            .select("id")
-            .single();
 
-          if (parentCat) {
-            for (let j = 0; j < group.subs.length; j++) {
-              await supabase.from("categories").insert({
-                name: group.subs[j],
-                type: group.type,
-                parent_id: parentCat.id,
-                sort_order: j + 1,
-                user_id: user.id,
-                company_id: newCompany.id,
-              });
-            }
-          }
+        if (rpcError) {
+          await seedClientCategories(newCompany.id, user.id);
         }
+      } catch {
+        await seedClientCategories(newCompany.id, user.id);
       }
 
-      // 4. Atualiza a lista e seleciona a nova empresa
-      await fetchCompaniesData();
-      selectCompany(newCompany.id);
+      // 4. Cria centros de custo padrão
+      try {
+        await supabase.from("cost_centers").insert([
+          { name: "Operação", user_id: user.id, company_id: newCompany.id },
+          { name: "Administrativo", user_id: user.id, company_id: newCompany.id },
+          { name: "Comercial", user_id: user.id, company_id: newCompany.id },
+        ]);
+      } catch {}
 
+      // 5. Cria registro inicial em settings
+      try {
+        await supabase.from("settings").insert({
+          company_name: newCompany.name,
+          company_id: newCompany.id,
+          user_id: user.id,
+          webhook_url: "https://placeholder.com/webhook",
+        });
+      } catch {}
+
+      await fetchCompaniesData();
       return newCompany;
     } catch (err) {
-      console.error("Erro no fluxo de criação de empresa:", err);
+      console.error("Erro inesperado ao criar empresa:", err);
       return null;
     }
+  };
+
+  // Helper client-side para seeding de categorias
+  async function seedClientCategories(companyId: string, userId: string) {
+    for (let i = 0; i < DEFAULT_CATEGORIES_TEMPLATE.length; i++) {
+      const parent = DEFAULT_CATEGORIES_TEMPLATE[i];
+      const { data: parentCat } = await supabase
+        .from("categories")
+        .insert({
+          name: parent.name,
+          type: parent.type,
+          sort_order: i + 1,
+          user_id: userId,
+          company_id: companyId,
+        })
+        .select("id")
+        .single();
+
+      if (parentCat && parent.subs.length > 0) {
+        const subInserts = parent.subs.map((subName, sIdx) => ({
+          name: subName,
+          type: parent.type,
+          parent_id: parentCat.id,
+          sort_order: sIdx + 1,
+          user_id: userId,
+          company_id: companyId,
+        }));
+        await supabase.from("categories").insert(subInserts);
+      }
+    }
+  }
+
+  const refreshCompanies = async () => {
+    await fetchCompaniesData();
   };
 
   return (
@@ -275,7 +292,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         userRole,
         loading,
         selectCompany,
-        refreshCompanies: fetchCompaniesData,
+        refreshCompanies,
         createCompany,
       }}
     >

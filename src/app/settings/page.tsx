@@ -206,8 +206,8 @@ export default function SettingsPage() {
             </span>
           </button>
 
-          {/* Aba 2: Gestão de Clientes / Master */}
-          {(isMaster || companies.length > 1) && (
+          {/* Aba 2: Gestão de Clientes / Master (EXCLUSIVO PARA MASTER) */}
+          {isMaster && (
             <button
               type="button"
               onClick={() => setActiveTab("clients")}
