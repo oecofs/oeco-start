@@ -164,8 +164,7 @@ export default function SettingsPage() {
   // Logout
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+    window.location.href = "/login";
   }
 
   if (loading) {

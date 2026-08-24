@@ -165,7 +165,25 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchCompaniesData();
-  }, [fetchCompaniesData]);
+
+    // Escuta mudanças de sessão de autenticação em tempo real (Login / Logout / Troca de Conta)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        fetchCompaniesData();
+      } else if (event === "SIGNED_OUT") {
+        setIsMaster(false);
+        setUserRole(null);
+        setCompanies([]);
+        setSelectedCompany(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchCompaniesData, supabase]);
 
   const selectCompany = (companyId: string) => {
     const target = companies.find((c) => c.id === companyId);

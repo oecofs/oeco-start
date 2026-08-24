@@ -31,8 +31,7 @@ export default function LoginPage() {
       setError("E-mail ou senha incorretos. Tente novamente.");
       setLoading(false);
     } else {
-      router.push("/dashboard");
-      router.refresh();
+      window.location.href = "/dashboard";
     }
   }
 
