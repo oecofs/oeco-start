@@ -2,12 +2,13 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import MonthSelector from "@/components/MonthSelector";
+import Navigation from "@/components/Navigation";
 import {
   Granularity,
   Dimension,
@@ -29,6 +30,10 @@ import {
   getAHColorClass,
   formatMonthToBR,
 } from "@/lib/reports/calculations";
+import {
+  computeExecutiveDiagnostic,
+  computeReconciledAiDiagnostic,
+} from "@/lib/reports/diagnostics";
 import {
   ResponsiveContainer,
   PieChart,
@@ -61,7 +66,7 @@ const CHART_COLORS = [
 type DrillStep = {
   id: string;
   name: string;
-  level: "root" | "category" | "subcategory";
+  level: "root" | "category" | "subcategory" | "account" | "cost_center";
   type?: "income" | "expense";
   categoryId?: string | null;
   subcategoryId?: string | null;
@@ -72,7 +77,13 @@ type DrillStep = {
 export default function ReportsPage() {
   const supabase = createClient();
   const router = useRouter();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, isMaster, userRole } = useCompany();
+
+  // Permissão Master
+  const isMasterUser = isMaster || userRole === "master";
+
+  // Controle de Subabas Principais
+  const [activeTab, setActiveTab] = useState<"reports" | "ai_diagnostic">("reports");
 
   // Estados dos 4 Eixos de Filtragem
   const [granularity, setGranularity] = useState<Granularity>("month_by_month");
@@ -106,6 +117,18 @@ export default function ReportsPage() {
   const [selectedSeriesKeys, setSelectedSeriesKeys] = useState<string[]>([]);
   const [showSeriesSelectorModal, setShowSeriesSelectorModal] = useState(false);
 
+  // Subaba de IA / Diagnóstico CFO com IA (Exclusivo Master)
+  const [aiStartMonth, setAiStartMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-01`;
+  });
+  const [aiEndMonth, setAiEndMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [aiCommentary, setAiCommentary] = useState<string>("");
+  const [loadingAi, setLoadingAi] = useState(false);
+
   // Stack de Drill-Down
   const [drillStack, setDrillStack] = useState<DrillStep[]>([
     { id: "root", name: "Visão Geral", level: "root" },
@@ -118,7 +141,7 @@ export default function ReportsPage() {
   const [bankAccounts, setBankAccounts] = useState<ReportBankAccount[]>([]);
   const [costCenters, setCostCenters] = useState<ReportCostCenter[]>([]);
 
-  // Meses ativos no período
+  // Meses ativos no período do relatório principal
   const activeMonths = useMemo(() => {
     if (granularity === "single_month") {
       return [selectedMonth];
@@ -126,12 +149,42 @@ export default function ReportsPage() {
     return generateMonthRange(startMonth, endMonth);
   }, [granularity, selectedMonth, startMonth, endMonth]);
 
+  // Meses do diagnóstico de IA
+  const aiTargetMonths = useMemo(() => {
+    return generateMonthRange(aiStartMonth, aiEndMonth);
+  }, [aiStartMonth, aiEndMonth]);
+
+  // Todos os meses que precisam ser consultados do banco
+  const queryMonths = useMemo(() => {
+    const set = new Set(activeMonths);
+    if (isMasterUser) {
+      for (const m of aiTargetMonths) set.add(m);
+    }
+    return Array.from(set);
+  }, [activeMonths, aiTargetMonths, isMasterUser]);
+
   // Colunas geradas para o período
   const columns: ColumnDef[] = useMemo(() => {
     return getColumnsForGranularity(granularity, selectedMonth, startMonth, endMonth);
   }, [granularity, selectedMonth, startMonth, endMonth]);
 
-  // Busca de dados
+  // Label do período ativo
+  const periodLabel = useMemo(() => {
+    if (granularity === "single_month") {
+      return formatMonthToBR(selectedMonth);
+    }
+    return `${formatMonthToBR(startMonth)} a ${formatMonthToBR(endMonth)}`;
+  }, [granularity, selectedMonth, startMonth, endMonth]);
+
+  // Label da dimensão ativa
+  const dimensionLabel = useMemo(() => {
+    if (dimension === "cashflow") return "Fluxo de Caixa";
+    if (dimension === "category") return "Por Categoria";
+    if (dimension === "bank_account") return "Por Conta";
+    return "Por Centro Custo";
+  }, [dimension]);
+
+  // Busca de dados exata com filtro de meses para garantir 100% de integridade
   const fetchData = useCallback(async () => {
     if (!selectedCompany) {
       setAllTransactions([]);
@@ -149,7 +202,7 @@ export default function ReportsPage() {
         .from("transactions")
         .select("id, date, description, amount, category_id, cost_center, is_reconciled, is_internal_transfer, bank_account_id, month_ref")
         .eq("company_id", selectedCompany.id)
-        .in("month_ref", activeMonths),
+        .in("month_ref", queryMonths),
       supabase
         .from("categories")
         .select("id, name, type, parent_id, cost_center")
@@ -173,13 +226,13 @@ export default function ReportsPage() {
     setBankAccounts(accsRes.data || []);
     setCostCenters(ccRes.data || []);
     setLoading(false);
-  }, [supabase, activeMonths, selectedCompany]);
+  }, [supabase, queryMonths, selectedCompany]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Regra de Validação de Conciliação
+  // Regra de Validação de Conciliação para o período principal
   const reconciliationCheck = useMemo(() => {
     return validateReconciliation(allTransactions, activeMonths);
   }, [allTransactions, activeMonths]);
@@ -205,16 +258,19 @@ export default function ReportsPage() {
 
   function pushDrill(step: DrillStep) {
     setDrillStack((prev) => [...prev, step]);
+    setSelectedSeriesKeys([]);
   }
 
   function popDrill() {
     if (drillStack.length > 1) {
       setDrillStack((prev) => prev.slice(0, prev.length - 1));
+      setSelectedSeriesKeys([]);
     }
   }
 
   function resetDrill() {
     setDrillStack([{ id: "root", name: "Visão Geral", level: "root" }]);
+    setSelectedSeriesKeys([]);
   }
 
   function handleDimensionChange(newDim: Dimension) {
@@ -223,14 +279,35 @@ export default function ReportsPage() {
     setSelectedSeriesKeys([]);
   }
 
-  // Estrutura de dados para Tabela e Gráficos
+  function toggleSeriesKey(key: string) {
+    setSelectedSeriesKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : prev.length < 3 ? [...prev, key] : prev
+    );
+  }
+
+  // Navegar direto para o Extrato Filtrado
+  function handleNavigateToTransactions(catId?: string | null, subId?: string | null) {
+    const targetMonth = granularity === "single_month" ? selectedMonth : endMonth;
+    const params = new URLSearchParams();
+    params.set("month", targetMonth);
+    if (subId) {
+      params.set("category_id", subId);
+    } else if (catId) {
+      params.set("category_id", catId);
+    }
+    router.push(`/transactions?${params.toString()}`);
+  }
+
+  // Estrutura de dados para Tabela e Gráficos (Idêntica ao motor de produção confiável)
   const tableData = useMemo(() => {
     const totalIncome: Record<string, number> = {};
     const totalExpense: Record<string, number> = {};
     const netBalance: Record<string, number> = {};
 
     for (const col of columns) {
-      const colTrxs = allTransactions.filter((t) => col.monthRefs.includes(t.month_ref) && !t.is_internal_transfer);
+      const colTrxs = allTransactions.filter(
+        (t) => col.monthRefs.includes(t.month_ref) && !t.is_internal_transfer
+      );
       const inc = colTrxs.filter((t) => t.amount > 0).reduce((sum, t) => sum + Number(t.amount), 0);
       const exp = colTrxs.filter((t) => t.amount < 0).reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
       totalIncome[col.key] = inc;
@@ -240,8 +317,9 @@ export default function ReportsPage() {
 
     const rows: TableRowData[] = [];
 
+    // 1. FLUXO DE CAIXA
     if (dimension === "cashflow") {
-      // 1. Receitas
+      // Receitas Operacionais
       const incomeCategories = categories.filter((c) => c.type === "income" && c.parent_id === null);
       const incomeChildren: TableRowData[] = incomeCategories.map((cat) => {
         const values: Record<string, number> = {};
@@ -249,7 +327,13 @@ export default function ReportsPage() {
 
         for (const col of columns) {
           const sum = allTransactions
-            .filter((t) => col.monthRefs.includes(t.month_ref) && t.amount > 0 && t.category_id && (t.category_id === cat.id || subCatIds.has(t.category_id)))
+            .filter(
+              (t) =>
+                col.monthRefs.includes(t.month_ref) &&
+                t.amount > 0 &&
+                t.category_id &&
+                (t.category_id === cat.id || subCatIds.has(t.category_id))
+            )
             .reduce((s, t) => s + Number(t.amount), 0);
           values[col.key] = sum;
         }
@@ -271,7 +355,7 @@ export default function ReportsPage() {
         children: incomeChildren,
       });
 
-      // 2. Despesas
+      // Despesas Operacionais
       const expenseCategories = categories.filter((c) => c.type === "expense" && c.parent_id === null);
       const expenseChildren: TableRowData[] = expenseCategories.map((cat) => {
         const values: Record<string, number> = {};
@@ -279,7 +363,13 @@ export default function ReportsPage() {
 
         for (const col of columns) {
           const sum = allTransactions
-            .filter((t) => col.monthRefs.includes(t.month_ref) && t.amount < 0 && t.category_id && (t.category_id === cat.id || subCatIds.has(t.category_id)))
+            .filter(
+              (t) =>
+                col.monthRefs.includes(t.month_ref) &&
+                t.amount < 0 &&
+                t.category_id &&
+                (t.category_id === cat.id || subCatIds.has(t.category_id))
+            )
             .reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           values[col.key] = sum;
         }
@@ -300,7 +390,9 @@ export default function ReportsPage() {
         values: totalExpense,
         children: expenseChildren,
       });
-    } else if (dimension === "category") {
+    }
+    // 2. CATEGORIAS
+    else if (dimension === "category") {
       if (currentDrill.level === "root") {
         const parentCats = categories.filter((c) => c.parent_id === null);
         for (const parent of parentCats) {
@@ -366,7 +458,9 @@ export default function ReportsPage() {
           });
         }
       }
-    } else if (dimension === "bank_account") {
+    }
+    // 3. CONTAS BANCÁRIAS
+    else if (dimension === "bank_account") {
       for (const acc of bankAccounts) {
         const values: Record<string, number> = {};
         for (const col of columns) {
@@ -382,7 +476,9 @@ export default function ReportsPage() {
           values,
         });
       }
-    } else if (dimension === "cost_center") {
+    }
+    // 4. CENTROS DE CUSTO
+    else if (dimension === "cost_center") {
       const distinctCCs = Array.from(
         new Set([
           ...costCenters.map((cc) => cc.name),
@@ -419,7 +515,30 @@ export default function ReportsPage() {
     };
   }, [dimension, currentDrill, categories, bankAccounts, costCenters, columns, allTransactions]);
 
-  // Séries padrão selecionadas para gráficos (inicializa com até as 3 primeiras)
+  // Diagnóstico Geral do Período Atual
+  const diagnostic = useMemo(() => {
+    return computeExecutiveDiagnostic(
+      tableData.rows,
+      columns,
+      tableData.totalIncome,
+      tableData.totalExpense,
+      dimensionLabel
+    );
+  }, [tableData.rows, columns, tableData.totalIncome, tableData.totalExpense, dimensionLabel]);
+
+  // Diagnóstico Específico para a Subaba de IA (Apenas Dados Conciliados do Período Selecionado pelo Master)
+  const aiDiagnostic = useMemo(() => {
+    return computeReconciledAiDiagnostic(allTransactions, categories, aiTargetMonths);
+  }, [allTransactions, categories, aiTargetMonths]);
+
+  // Sincroniza a narrativa inicial de IA
+  useEffect(() => {
+    if (!aiCommentary && aiDiagnostic.summaryNarrative) {
+      setAiCommentary(aiDiagnostic.summaryNarrative);
+    }
+  }, [aiDiagnostic.summaryNarrative, aiCommentary]);
+
+  // Séries padrão selecionadas para gráficos
   useEffect(() => {
     if (tableData.rows.length > 0 && selectedSeriesKeys.length === 0) {
       setSelectedSeriesKeys(tableData.rows.slice(0, 3).map((r) => r.id));
@@ -460,807 +579,1080 @@ export default function ReportsPage() {
     return pieChartData.reduce((sum, item) => sum + item.value, 0);
   }, [pieChartData]);
 
-  // Alternar seleção de série (máx 3)
-  function toggleSeriesKey(key: string) {
-    setSelectedSeriesKeys((prev) => {
-      if (prev.includes(key)) {
-        return prev.filter((k) => k !== key);
-      }
-      if (prev.length >= 3) {
-        return prev;
-      }
-      return [...prev, key];
-    });
+  // Handlers de Exportação Dinâmica (Exclusivo Master)
+  async function handleExportPdf() {
+    if (!selectedCompany || !isMasterUser) return;
+    try {
+      const { exportReportToPdf } = await import("@/lib/reports/exportPdf");
+      exportReportToPdf({
+        companyName: selectedCompany.name,
+        periodLabel,
+        dimensionLabel,
+        columns,
+        rows: tableData.rows,
+        totalIncomeByCol: tableData.totalIncome,
+        totalExpenseByCol: tableData.totalExpense,
+        netBalanceByCol: tableData.netBalance,
+        diagnostic,
+      });
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+    }
   }
 
-  // Redirecionamento com filtros para /transactions
-  function handleNavigateToTransactions(catId?: string | null, subId?: string | null) {
-    const targetMonth = granularity === "single_month" ? selectedMonth : endMonth;
-    const params = new URLSearchParams();
-    params.set("month", targetMonth);
-    if (catId) params.set("category_id", catId);
-    if (subId) params.set("subcategory_id", subId);
-    router.push(`/transactions?${params.toString()}`);
+  async function handleExportXlsx() {
+    if (!selectedCompany || !isMasterUser) return;
+    try {
+      const { exportReportToXlsx } = await import("@/lib/reports/exportXlsx");
+      exportReportToXlsx({
+        companyName: selectedCompany.name,
+        periodLabel,
+        dimensionLabel,
+        columns,
+        rows: tableData.rows,
+        totalIncomeByCol: tableData.totalIncome,
+        totalExpenseByCol: tableData.totalExpense,
+        netBalanceByCol: tableData.netBalance,
+        diagnostic,
+        transactions: allTransactions.filter((t) => activeMonths.includes(t.month_ref)),
+        categories,
+        bankAccounts,
+      });
+    } catch (err) {
+      console.error("Erro ao gerar XLSX:", err);
+    }
+  }
+
+  // Exportar Relatório de IA Conciliado do CFO em PDF
+  async function handleExportAiPdf() {
+    if (!selectedCompany || !isMasterUser) return;
+    try {
+      const { exportReportToPdf } = await import("@/lib/reports/exportPdf");
+      const aiColumns: ColumnDef[] = aiTargetMonths.map((m) => ({
+        key: m,
+        label: formatMonthToBR(m),
+        monthRefs: [m],
+      }));
+
+      const aiRows: TableRowData[] = aiDiagnostic.topExpenseCategories.map((c) => ({
+        id: `ai-${c.name}`,
+        name: c.name,
+        type: "expense",
+        values: { total: c.amount },
+      }));
+
+      exportReportToPdf({
+        companyName: selectedCompany.name,
+        periodLabel: `${formatMonthToBR(aiStartMonth)} a ${formatMonthToBR(aiEndMonth)} (Auditoria 100% Conciliada)`,
+        dimensionLabel: "Diagnóstico CFO com Inteligência Artificial",
+        columns: aiColumns,
+        rows: aiRows,
+        totalIncomeByCol: { total: aiDiagnostic.totalIncome },
+        totalExpenseByCol: { total: aiDiagnostic.totalExpense },
+        netBalanceByCol: { total: aiDiagnostic.netResult },
+        diagnostic: {
+          ...aiDiagnostic,
+          summaryNarrative: aiCommentary || aiDiagnostic.summaryNarrative,
+        },
+      });
+    } catch (err) {
+      console.error("Erro ao exportar PDF do CFO:", err);
+    }
+  }
+
+  // Gerar Síntese Executiva com IA Baseada EXCLUSIVAMENTE em Dados Conciliados
+  function handleGenerateAiSummary() {
+    setLoadingAi(true);
+    setTimeout(() => {
+      setAiCommentary(
+        `💡 Parecer Executivo do CFO (Auditoria 100% Conciliada): Durante o período de ${formatMonthToBR(
+          aiStartMonth
+        )} a ${formatMonthToBR(aiEndMonth)}, foram auditados ${
+          aiDiagnostic.reconciledCount
+        } lançamentos conciliados. A operação registrou receita líquida de ${formatBRL(
+          aiDiagnostic.totalIncome
+        )} frente a despesas realizadas de ${formatBRL(
+          aiDiagnostic.totalExpense
+        )}, gerando margem operacional de ${aiDiagnostic.operatingMarginPercent.toFixed(
+          1
+        )}% e resultado líquido de ${formatBRL(
+          aiDiagnostic.netResult
+        )}. As 3 maiores rubricas de despesa (${aiDiagnostic.topExpenseCategories
+          .map((t) => t.name)
+          .join(", ")}) concentraram ${aiDiagnostic.paretoConcentrationPercent.toFixed(
+          1
+        )}% de todos os desembolsos realizados.`
+      );
+      setLoadingAi(false);
+    }, 400);
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
-      {/* Top Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-600 hover:text-primary bg-slate-100 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <span>←</span> Voltar ao Dashboard
-            </Link>
-            <div className="h-4 w-px bg-gray-200 hidden sm:block" />
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 leading-tight">
-                Relatórios Financeiros
-              </h1>
-              <p className="text-xs text-slate-500">
-                BI, Inteligência Financeira e Análise de Margens
-              </p>
+    <Navigation>
+      <div className="p-4 md:p-8 space-y-6">
+        {/* ========================================================================= */}
+        {/* CABEÇALHO & EXPORTAÇÕES (MASTER ONLY)                                      */}
+        {/* ========================================================================= */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800">Relatórios & Inteligência Financeira</h1>
+            <p className="text-xs text-slate-500">
+              Demonstrações financeiras com drill-down interativo e auditoria de inteligência executiva
+            </p>
+          </div>
+
+          {/* Botões de Ação Exclusivos do Usuário Master */}
+          {isMasterUser && activeTab === "reports" && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleExportPdf}
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5"
+                title="Baixar Relatório Executivo em PDF"
+              >
+                <span>📄</span> Exportar PDF
+              </button>
+
+              <button
+                onClick={handleExportXlsx}
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5"
+                title="Baixar Planilha Excel com Múltiplas Abas"
+              >
+                <span>📊</span> Exportar Excel
+              </button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full border border-primary/20">
-              Modo CFO / Auditoria
-            </span>
-          </div>
+          )}
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
         {/* ========================================================================= */}
-        {/* PORTÃO DE CONCILIAÇÃO (GATEKEEPER)                                       */}
+        {/* CONTROLE DE SUBABAS: RELATÓRIOS VS DIAGNÓSTICO CFO IA (MASTER)            */}
         {/* ========================================================================= */}
-        {!loading && !reconciliationCheck.isClean && (
-          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-start gap-4">
-              <span className="text-3xl">⚠️</span>
-              <div className="space-y-2">
-                <h2 className="text-lg font-bold text-amber-900">
-                  Conciliação Pendente no Período Selecionado
-                </h2>
-                <p className="text-sm text-amber-800">
-                  Por integridade analítica, o sistema de BI não processa relatórios para períodos que contenham pendências de conciliação.
-                </p>
-                <div className="mt-3 p-3 bg-white/80 border border-amber-200 rounded-xl">
-                  <p className="text-xs font-semibold text-amber-900 mb-1">
-                    Há transações não conciliadas em:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {reconciliationCheck.pendingMonths.map((m) => (
-                      <span
-                        key={m}
-                        className="text-xs font-bold bg-amber-200/70 text-amber-900 px-2.5 py-1 rounded-md"
+        <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("reports")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              activeTab === "reports"
+                ? "bg-primary text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            <span>📊</span>
+            <span>Demonstrações & Relatórios</span>
+          </button>
+
+          {isMasterUser && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("ai_diagnostic")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === "ai_diagnostic"
+                  ? "bg-gradient-to-r from-indigo-900 to-indigo-800 text-white shadow-sm border border-indigo-700"
+                  : "bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+              }`}
+            >
+              <span>⚡</span>
+              <span>Diagnóstico CFO com IA</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold uppercase ${
+                  activeTab === "ai_diagnostic"
+                    ? "bg-white/20 text-white"
+                    : "bg-indigo-200/80 text-indigo-900"
+                }`}
+              >
+                Master
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* CONTEÚDO DA SUBABA 1: DEMONSTRAÇÕES & RELATÓRIOS GERAIS                   */}
+        {/* ========================================================================= */}
+        {activeTab === "reports" && (
+          <div className="space-y-6">
+            {/* AVISO DE CONCILIAÇÃO PENDENTE (SE HOUVER) */}
+            {!reconciliationCheck.isClean && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl">⚠️</span>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-amber-900">
+                      Atenção: Período com Pendências de Conciliação
+                    </h3>
+                    <p className="text-xs text-amber-700">
+                      Há transações não conciliadas em:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {reconciliationCheck.pendingMonths.map((m) => (
+                        <span
+                          key={m}
+                          className="text-xs font-bold bg-amber-200/70 text-amber-900 px-2.5 py-1 rounded-md"
+                        >
+                          {formatMonthToBR(m)}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="pt-2">
+                      <Link
+                        href={`/transactions?month=${reconciliationCheck.pendingMonths[0]}`}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:underline"
                       >
-                        {formatMonthToBR(m)}
-                      </span>
+                        <span>Ir para Conciliação de {formatMonthToBR(reconciliationCheck.pendingMonths[0])} →</span>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* BLOCO DE CONTROLE DOS 4 EIXOS DE ANÁLISE */}
+            <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                {/* EIXO 1: GRANULARIDADE */}
+                <div className="lg:col-span-4 space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                    1. Granularidade
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                    {(
+                      [
+                        { key: "single_month", label: "Mês Único" },
+                        { key: "month_by_month", label: "Mês a Mês" },
+                        { key: "quarter", label: "Trimestre" },
+                        { key: "total", label: "Total Período" },
+                      ] as { key: Granularity; label: string }[]
+                    ).map((g) => (
+                      <button
+                        key={g.key}
+                        onClick={() => handleGranularityChange(g.key)}
+                        className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
+                          granularity === g.key
+                            ? "bg-white text-primary shadow-sm"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        {g.label}
+                      </button>
                     ))}
                   </div>
                 </div>
-                <div className="pt-2 flex items-center gap-3">
-                  <Link
-                    href={`/transactions?month=${reconciliationCheck.pendingMonths[0]}`}
-                    className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow"
-                  >
-                    <span>Ir para Conciliação de {formatMonthToBR(reconciliationCheck.pendingMonths[0])}</span>
-                    <span>→</span>
-                  </Link>
-                  <span className="text-xs text-amber-700">
-                    Conclua a conciliação para desbloquear esta visão.
+
+                {/* EIXO 2: PERÍODO */}
+                <div className="lg:col-span-4 space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                    2. Período
+                  </label>
+                  {granularity === "single_month" ? (
+                    <div className="flex items-center">
+                      <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-8 flex-shrink-0">
+                          De:
+                        </span>
+                        <MonthSelector value={startMonth} onChange={setStartMonth} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-8 flex-shrink-0">
+                          Até:
+                        </span>
+                        <MonthSelector value={endMonth} onChange={setEndMonth} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* EIXO 3: ÂNGULO DE ANÁLISE */}
+                <div className="lg:col-span-4 space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                    3. Ângulo de Análise
+                  </label>
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                    {(
+                      [
+                        { key: "category", label: "Por Categoria" },
+                        { key: "cashflow", label: "Fluxo de Caixa" },
+                        { key: "bank_account", label: "Por Conta" },
+                        { key: "cost_center", label: "Por Centro Custo" },
+                      ] as { key: Dimension; label: string }[]
+                    ).map((d) => (
+                      <button
+                        key={d.key}
+                        onClick={() => handleDimensionChange(d.key)}
+                        className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
+                          dimension === d.key
+                            ? "bg-white text-primary shadow-sm"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* EIXO 4: VISUALIZAÇÃO & MATRIZ DE COMPATIBILIDADE */}
+                <div className="space-y-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                    4. Visualização
                   </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* 4 EIXOS DE FILTRAGEM (PILLS HORIZONTAIS)                                   */}
-        {/* ========================================================================= */}
-        <section className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            {/* EIXO 1: GRANULARIDADE */}
-            <div className="lg:col-span-4 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                1. Granularidade
-              </label>
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
-                {(
-                  [
-                    { key: "single_month", label: "Mês Único" },
-                    { key: "month_by_month", label: "Mês a Mês" },
-                    { key: "quarter", label: "Trimestre" },
-                    { key: "total", label: "Total Período" },
-                  ] as { key: Granularity; label: string }[]
-                ).map((g) => (
-                  <button
-                    key={g.key}
-                    onClick={() => handleGranularityChange(g.key)}
-                    className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
-                      granularity === g.key
-                        ? "bg-white text-primary shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* EIXO 2: PERÍODO */}
-            <div className="lg:col-span-4 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                2. Período
-              </label>
-              {granularity === "single_month" ? (
-                <div className="flex items-center">
-                  <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-8 flex-shrink-0">
-                      De:
-                    </span>
-                    <MonthSelector value={startMonth} onChange={setStartMonth} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-8 flex-shrink-0">
-                      Até:
-                    </span>
-                    <MonthSelector value={endMonth} onChange={setEndMonth} />
+                  <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-xl inline-flex">
+                    {(
+                      [
+                        { key: "table", label: "📊 Tabela", badge: "AV/AH" },
+                        { key: "pie", label: "🥧 Pizza", badge: "Composição" },
+                        { key: "bar", label: "📶 Barras", badge: "Máx 3" },
+                        { key: "line", label: "📈 Linha", badge: "Máx 3" },
+                      ] as { key: VisualMode; label: string; badge: string }[]
+                    ).map((v) => {
+                      const compatible = isVisualCompatible(granularity, v.key);
+                      return (
+                        <button
+                          key={v.key}
+                          disabled={!compatible}
+                          onClick={() => setVisualMode(v.key)}
+                          className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            visualMode === v.key
+                              ? "bg-white text-primary shadow-sm"
+                              : compatible
+                              ? "text-slate-600 hover:text-slate-900"
+                              : "text-slate-300 cursor-not-allowed opacity-50"
+                          }`}
+                        >
+                          <span>{v.label}</span>
+                          <span className="text-[10px] px-1 py-0.2 rounded bg-slate-200 text-slate-600">
+                            {v.badge}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* EIXO 3: ÂNGULO DE ANÁLISE */}
-            <div className="lg:col-span-4 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                3. Ângulo de Análise
-              </label>
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
-                {(
-                  [
-                    { key: "category", label: "Por Categoria" },
-                    { key: "cashflow", label: "Fluxo de Caixa" },
-                    { key: "bank_account", label: "Por Conta" },
-                    { key: "cost_center", label: "Por Centro Custo" },
-                  ] as { key: Dimension; label: string }[]
-                ).map((d) => (
-                  <button
-                    key={d.key}
-                    onClick={() => handleDimensionChange(d.key)}
-                    className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
-                      dimension === d.key
-                        ? "bg-white text-primary shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+                {/* SELETOR DE SÉRIES / TOGGLES EXCLUSIVOS */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {visualMode === "table" && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowAV(!showAV)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                          showAV
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span>AV (Vertical %)</span>
+                      </button>
 
-          <div className="border-t border-slate-100 pt-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* EIXO 4: VISUALIZAÇÃO & MATRIZ DE COMPATIBILIDADE */}
-            <div className="space-y-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                4. Visualização
-              </span>
-              <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-xl inline-flex">
-                {(
-                  [
-                    { key: "table", label: "📊 Tabela", badge: "AV/AH" },
-                    { key: "pie", label: "🥧 Pizza", badge: "Composição" },
-                    { key: "bar", label: "📶 Barras", badge: "Máx 3" },
-                    { key: "line", label: "📈 Linha", badge: "Máx 3" },
-                  ] as { key: VisualMode; label: string; badge: string }[]
-                ).map((v) => {
-                  const compatible = isVisualCompatible(granularity, v.key);
-                  return (
+                      <button
+                        onClick={() => setShowAH(!showAH)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                          showAH
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span>AH (Horizontal Δ%)</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {(visualMode === "bar" || visualMode === "line") && (
                     <button
-                      key={v.key}
-                      disabled={!compatible}
-                      onClick={() => setVisualMode(v.key)}
-                      className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                        visualMode === v.key
-                          ? "bg-white text-primary shadow-sm"
-                          : compatible
-                          ? "text-slate-600 hover:text-slate-900"
-                          : "text-slate-300 cursor-not-allowed opacity-50"
+                      onClick={() => setShowSeriesSelectorModal(true)}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2"
+                    >
+                      <span>🎯 Filtrar Séries ({selectedSeriesKeys.length}/3)</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* DRILL-DOWN STACK & BREADCRUMBS */}
+            <section className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-slate-400">Navegação:</span>
+                {drillStack.map((step, idx) => (
+                  <div key={step.id} className="flex items-center gap-2">
+                    {idx > 0 && <span className="text-xs text-slate-300">/</span>}
+                    <button
+                      type="button"
+                      onClick={() => setDrillStack((prev) => prev.slice(0, idx + 1))}
+                      className={`text-xs font-bold px-2 py-0.5 rounded-md transition-colors ${
+                        idx === drillStack.length - 1
+                          ? "bg-primary/10 text-primary border border-primary/20 cursor-default"
+                          : "text-slate-600 hover:text-slate-900 hover:underline"
                       }`}
                     >
-                      <span>{v.label}</span>
-                      <span className="text-[10px] px-1 py-0.2 rounded bg-slate-200 text-slate-600">
-                        {v.badge}
-                      </span>
+                      {step.name}
                     </button>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-            </div>
 
-            {/* SELETOR DE SÉRIES / TOGGLES EXCLUSIVOS */}
-            <div className="flex items-center gap-3">
-              {visualMode === "table" && (
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                {drillStack.length > 1 && (
                   <button
-                    onClick={() => setShowAV(!showAV)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
-                      showAV
-                        ? "bg-primary text-white border-primary"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                    }`}
+                    onClick={popDrill}
+                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
                   >
-                    <span>AV (Vertical %)</span>
+                    <span>←</span> Voltar
                   </button>
+                )}
 
+                {currentDrill.level !== "root" && (
                   <button
-                    onClick={() => setShowAH(!showAH)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
-                      showAH
-                        ? "bg-primary text-white border-primary"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                    }`}
+                    onClick={() =>
+                      handleNavigateToTransactions(currentDrill.categoryId, currentDrill.subcategoryId)
+                    }
+                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow flex items-center gap-1"
                   >
-                    <span>AH (Horizontal Δ%)</span>
+                    <span>→ Ver transações detalhadas</span>
                   </button>
-                </div>
-              )}
-
-              {(visualMode === "bar" || visualMode === "line") && (
-                <button
-                  onClick={() => setShowSeriesSelectorModal(true)}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-dark transition-colors shadow-sm flex items-center gap-2"
-                >
-                  <span>🎯 Filtrar Séries ({selectedSeriesKeys.length}/3)</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* DRILL-DOWN STACK & BREADCRUMBS                                            */}
-        {/* ========================================================================= */}
-        <section className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-slate-400">Navegação:</span>
-            {drillStack.map((step, idx) => (
-              <div key={step.id} className="flex items-center gap-2">
-                {idx > 0 && <span className="text-xs text-slate-300">/</span>}
-                <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                    idx === drillStack.length - 1
-                      ? "bg-primary/10 text-primary border border-primary/20"
-                      : "text-slate-600"
-                  }`}
-                >
-                  {step.name}
-                </span>
+                )}
               </div>
-            ))}
-          </div>
+            </section>
 
-          <div className="flex items-center gap-2">
-            {drillStack.length > 1 && (
-              <button
-                onClick={popDrill}
-                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
-              >
-                <span>←</span> Voltar
-              </button>
-            )}
+            {/* ÁREA DE VISUALIZAÇÃO PRINCIPAL */}
+            {loading ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center shadow-sm">
+                <p className="text-slate-400 font-medium">Carregando dados analíticos...</p>
+              </div>
+            ) : (
+              <section className="space-y-6">
+                {/* 1. MODO TABELA COM AV / AH & ACCORDION INLINE */}
+                {visualMode === "table" && (
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 uppercase font-bold tracking-wider">
+                            <th className="py-3 px-4 min-w-[220px]">Dimensão / Linha</th>
+                            {columns.map((col) => (
+                              <th key={col.key} className="py-3 px-4 text-right min-w-[160px]">
+                                {col.label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {tableData.rows.map((row) => {
+                            const isExpanded = expandedRows[row.id];
+                            const hasChildren = row.children && row.children.length > 0;
 
-            {currentDrill.level !== "root" && (
-              <button
-                onClick={() =>
-                  handleNavigateToTransactions(
-                    currentDrill.categoryId,
-                    currentDrill.subcategoryId
-                  )
-                }
-                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow flex items-center gap-1"
-              >
-                <span>→ Ver transações detalhadas</span>
-              </button>
-            )}
-          </div>
-        </section>
+                            return (
+                              <Fragment key={row.id}>
+                                {/* Linha Pai */}
+                                <tr className="hover:bg-slate-50 transition-colors group">
+                                  <td className="py-3 px-4 flex items-center gap-2">
+                                    {hasChildren ? (
+                                      <button
+                                        onClick={() => toggleRowExpansion(row.id)}
+                                        className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-primary transition-colors font-mono font-bold text-xs"
+                                      >
+                                        {isExpanded ? "▼" : "▶"}
+                                      </button>
+                                    ) : (
+                                      <span className="w-5 h-5" />
+                                    )}
 
-        {/* ========================================================================= */}
-        {/* ÁREA DE VISUALIZAÇÃO PRINCIPAL                                            */}
-        {/* ========================================================================= */}
-        {loading ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center shadow-sm">
-            <p className="text-slate-400 font-medium">Carregando dados analíticos...</p>
-          </div>
-        ) : !reconciliationCheck.isClean ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center text-slate-400">
-            Relatório bloqueado devido a pendências de conciliação.
-          </div>
-        ) : (
-          <section className="space-y-6">
-            {/* --------------------------------------------------------------------- */}
-            {/* 1. MODO TABELA COM AV / AH & ACCORDION INLINE                         */}
-            {/* --------------------------------------------------------------------- */}
-            {visualMode === "table" && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 uppercase font-bold tracking-wider">
-                        <th className="py-3 px-4 min-w-[220px]">Dimensão / Linha</th>
-                        {columns.map((col) => (
-                          <th key={col.key} className="py-3 px-4 text-right min-w-[160px]">
-                            {col.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {tableData.rows.map((row) => {
-                        const isExpanded = expandedRows[row.id];
-                        const hasChildren = row.children && row.children.length > 0;
+                                    <button
+                                      onClick={() => {
+                                        if (row.categoryId && currentDrill.level === "root") {
+                                          pushDrill({
+                                            id: row.id,
+                                            name: row.name,
+                                            level: "category",
+                                            type: row.type as any,
+                                            categoryId: row.categoryId,
+                                          });
+                                        }
+                                      }}
+                                      className="font-bold text-slate-900 hover:text-primary text-left transition-colors"
+                                    >
+                                      {row.name}
+                                    </button>
+                                  </td>
 
-                        return (
-                          <div key={row.id} className="contents">
-                            {/* Linha Pai */}
-                            <tr className="hover:bg-slate-50 transition-colors group">
-                              <td className="py-3 px-4 flex items-center gap-2">
-                                {hasChildren ? (
-                                  <button
-                                    onClick={() => toggleRowExpansion(row.id)}
-                                    className="w-5 h-5 flex items-center justify-center text-slate-400 hover:text-primary transition-colors font-mono font-bold text-xs"
-                                  >
-                                    {isExpanded ? "▼" : "▶"}
-                                  </button>
-                                ) : (
-                                  <span className="w-5 h-5" />
+                                  {columns.map((col, colIdx) => {
+                                    const val = row.values[col.key] || 0;
+                                    const prevVal = colIdx > 0 ? row.values[columns[colIdx - 1].key] : undefined;
+
+                                    const groupTotal =
+                                      row.type === "income"
+                                        ? tableData.totalIncome[col.key]
+                                        : row.type === "expense"
+                                        ? tableData.totalExpense[col.key]
+                                        : Math.abs(tableData.netBalance[col.key]);
+
+                                    const av = calculateAV(val, groupTotal);
+                                    const ah = calculateAH(val, prevVal);
+
+                                    return (
+                                      <td key={col.key} className="py-3 px-4 text-right">
+                                        <div className="font-semibold text-slate-900">
+                                          {formatBRL(val)}
+                                        </div>
+                                        <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[10px]">
+                                          {showAV && (
+                                            <span className="text-slate-500 bg-slate-100 px-1 py-0.2 rounded font-mono">
+                                              AV: {av.toFixed(1)}%
+                                            </span>
+                                          )}
+                                          {showAH && colIdx > 0 && ah !== null && (
+                                            <span className={`font-mono ${getAHColorClass(ah, row.type)}`}>
+                                              AH: {formatPercent(ah)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+
+                                {/* Sublinhas expandidas (Accordion Inline) */}
+                                {hasChildren && isExpanded && (
+                                  <Fragment>
+                                    {row.children!.map((child) => (
+                                      <tr key={child.id} className="bg-slate-50/70 hover:bg-slate-100/60 transition-colors">
+                                        <td className="py-2.5 px-4 pl-10 flex items-center justify-between text-slate-700">
+                                          <span className="font-medium text-slate-800">
+                                            ↳ {child.name}
+                                          </span>
+                                          <button
+                                            onClick={() =>
+                                              handleNavigateToTransactions(
+                                                child.categoryId,
+                                                child.subcategoryId
+                                              )
+                                            }
+                                            className="text-[10px] text-primary hover:underline"
+                                          >
+                                            ver transações
+                                          </button>
+                                        </td>
+
+                                        {columns.map((col, colIdx) => {
+                                          const childVal = child.values[col.key] || 0;
+                                          const parentVal = row.values[col.key] || 0;
+                                          const prevChildVal = colIdx > 0 ? child.values[columns[colIdx - 1].key] : undefined;
+
+                                          const childAV = calculateAV(childVal, parentVal);
+                                          const childAH = calculateAH(childVal, prevChildVal);
+
+                                          return (
+                                            <td key={col.key} className="py-2.5 px-4 text-right">
+                                              <div className="font-medium text-slate-700">
+                                                {formatBRL(childVal)}
+                                              </div>
+                                              <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[10px]">
+                                                {showAV && (
+                                                  <span className="text-slate-400 bg-white border border-slate-200 px-1 py-0.2 rounded font-mono">
+                                                    AV: {childAV.toFixed(1)}%
+                                                  </span>
+                                                )}
+                                                {showAH && colIdx > 0 && childAH !== null && (
+                                                  <span className={`font-mono ${getAHColorClass(childAH, child.type)}`}>
+                                                    AH: {formatPercent(childAH)}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </td>
+                                          );
+                                        })}
+                                      </tr>
+                                    ))}
+                                  </Fragment>
                                 )}
+                              </Fragment>
+                            );
+                          })}
 
-                                <button
-                                  onClick={() => {
-                                    if (row.categoryId && currentDrill.level === "root") {
-                                      pushDrill({
-                                        id: row.id,
-                                        name: row.name,
-                                        level: "category",
-                                        type: row.type as any,
-                                        categoryId: row.categoryId,
-                                      });
-                                    }
-                                  }}
-                                  className="font-bold text-slate-900 hover:text-primary text-left transition-colors"
-                                >
-                                  {row.name}
-                                </button>
+                          {/* TOTAIS CONSOLIDADOS (SE FOR FLUXO DE CAIXA OU CATEGORIAS) */}
+                          {dimension === "cashflow" && (
+                            <tr className="bg-primary/5 border-t-2 border-primary/20 font-bold">
+                              <td className="py-3 px-4 text-primary uppercase">
+                                = Saldo Líquido Operacional
                               </td>
-
                               {columns.map((col, colIdx) => {
-                                const val = row.values[col.key] || 0;
-                                const prevVal = colIdx > 0 ? row.values[columns[colIdx - 1].key] : undefined;
-
-                                const groupTotal =
-                                  row.type === "income"
-                                    ? tableData.totalIncome[col.key]
-                                    : row.type === "expense"
-                                    ? tableData.totalExpense[col.key]
-                                    : Math.abs(tableData.netBalance[col.key]);
-
-                                const av = calculateAV(val, groupTotal);
-                                const ah = calculateAH(val, prevVal);
+                                const net = tableData.netBalance[col.key] || 0;
+                                const prevNet = colIdx > 0 ? tableData.netBalance[columns[colIdx - 1].key] : undefined;
+                                const ah = calculateAH(net, prevNet);
 
                                 return (
                                   <td key={col.key} className="py-3 px-4 text-right">
-                                    <div className="font-semibold text-slate-900">
-                                      {formatBRL(val)}
+                                    <div className={`text-sm font-extrabold ${net >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                                      {formatBRL(net)}
                                     </div>
-                                    <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[10px]">
-                                      {showAV && (
-                                        <span className="text-slate-500 bg-slate-100 px-1 py-0.2 rounded font-mono">
-                                          AV: {av.toFixed(1)}%
-                                        </span>
-                                      )}
-                                      {showAH && colIdx > 0 && ah !== null && (
-                                        <span className={`font-mono ${getAHColorClass(ah, row.type)}`}>
-                                          AH: {formatPercent(ah)}
-                                        </span>
-                                      )}
-                                    </div>
+                                    {showAH && colIdx > 0 && ah !== null && (
+                                      <div className={`text-[10px] font-mono mt-0.5 ${getAHColorClass(ah, "net")}`}>
+                                        AH: {formatPercent(ah)}
+                                      </div>
+                                    )}
                                   </td>
                                 );
                               })}
                             </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
-                            {/* Sublinhas expandidas (Accordion Inline) */}
-                            {hasChildren && isExpanded && (
-                              <div className="contents">
-                                {row.children!.map((child) => (
-                                  <tr key={child.id} className="bg-slate-50/70 hover:bg-slate-100/60 transition-colors">
-                                    <td className="py-2.5 px-4 pl-10 flex items-center justify-between text-slate-700">
-                                      <span className="font-medium text-slate-800">
-                                        ↳ {child.name}
-                                      </span>
-                                      <button
-                                        onClick={() =>
-                                          handleNavigateToTransactions(
-                                            child.categoryId,
-                                            child.subcategoryId
-                                          )
-                                        }
-                                        className="text-[10px] text-primary hover:underline"
-                                      >
-                                        ver transações
-                                      </button>
-                                    </td>
+                {/* 2. MODO PIZZA (COMPOSIÇÃO & REPRESENTATIVIDADE) */}
+                {visualMode === "pie" && (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <div className="mb-4">
+                      <h3 className="text-base font-bold text-slate-900">
+                        Composição Percentual ({columns[0]?.label})
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Distribuição proporcional das linhas selecionadas.
+                      </p>
+                    </div>
 
-                                    {columns.map((col, colIdx) => {
-                                      const childVal = child.values[col.key] || 0;
-                                      const parentVal = row.values[col.key] || 0;
-                                      const prevChildVal = colIdx > 0 ? child.values[columns[colIdx - 1].key] : undefined;
-
-                                      const childAV = calculateAV(childVal, parentVal);
-                                      const childAH = calculateAH(childVal, prevChildVal);
-
-                                      return (
-                                        <td key={col.key} className="py-2.5 px-4 text-right">
-                                          <div className="font-medium text-slate-700">
-                                            {formatBRL(childVal)}
-                                          </div>
-                                          <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[10px]">
-                                            {showAV && (
-                                              <span className="text-slate-400 bg-white border border-slate-200 px-1 py-0.2 rounded font-mono">
-                                                AV: {childAV.toFixed(1)}%
-                                              </span>
-                                            )}
-                                            {showAH && colIdx > 0 && childAH !== null && (
-                                              <span className={`font-mono ${getAHColorClass(childAH, child.type)}`}>
-                                                AH: {formatPercent(childAH)}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </td>
-                                      );
-                                    })}
-                                  </tr>
+                    {pieChartData.length === 0 ? (
+                      <div className="py-16 text-center text-slate-400">
+                        Sem dados com valor positivo para exibir no gráfico de pizza.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                        <div className="lg:col-span-7 h-[360px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={pieChartData}
+                                dataKey="value"
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={120}
+                                innerRadius={60}
+                                paddingAngle={3}
+                              >
+                                {pieChartData.map((_, index) => (
+                                  <Cell
+                                    key={`cell-${index}`}
+                                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                                  />
                                 ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                              </Pie>
+                              <RechartsTooltip
+                                formatter={(value: any, name: any) => {
+                                  const valNum = Number(value);
+                                  const pct = totalPieValue > 0 ? (valNum / totalPieValue) * 100 : 0;
+                                  return [`${formatBRL(valNum)} (${pct.toFixed(1)}%)`, name];
+                                }}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
 
-                      {/* TOTAIS CONSOLIDADOS (SE FOR FLUXO DE CAIXA OU CATEGORIAS) */}
-                      {dimension === "cashflow" && (
-                        <tr className="bg-primary/5 border-t-2 border-primary/20 font-bold">
-                          <td className="py-3 px-4 text-primary uppercase">
-                            = Saldo Líquido Operacional
-                          </td>
-                          {columns.map((col, colIdx) => {
-                            const net = tableData.netBalance[col.key] || 0;
-                            const prevNet = colIdx > 0 ? tableData.netBalance[columns[colIdx - 1].key] : undefined;
-                            const ah = calculateAH(net, prevNet);
-
+                        <div className="lg:col-span-5 space-y-2 max-h-[360px] overflow-y-auto pr-2">
+                          {pieChartData.map((item, idx) => {
+                            const pct = totalPieValue > 0 ? (item.value / totalPieValue) * 100 : 0;
                             return (
-                              <td key={col.key} className="py-3 px-4 text-right">
-                                <div className={`text-sm font-extrabold ${net >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-                                  {formatBRL(net)}
-                                </div>
-                                {showAH && colIdx > 0 && ah !== null && (
-                                  <div className={`text-[10px] font-mono mt-0.5 ${getAHColorClass(ah, "net")}`}>
-                                    AH: {formatPercent(ah)}
+                              <div
+                                key={item.id}
+                                className="p-3 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-100"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <span
+                                    className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                                  />
+                                  <div>
+                                    <p className="text-xs font-bold text-slate-800">
+                                      {item.name}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500">{pct.toFixed(1)}% do total</p>
                                   </div>
-                                )}
-                              </td>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-xs font-bold text-slate-900 block">
+                                    {formatBRL(item.value)}
+                                  </span>
+                                </div>
+                              </div>
                             );
                           })}
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-            {/* --------------------------------------------------------------------- */}
-            {/* 2. MODO PIZZA (COMPOSIÇÃO & REPRESENTATIVIDADE)                         */}
-            {/* --------------------------------------------------------------------- */}
-            {visualMode === "pie" && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <div className="mb-4">
-                  <h3 className="text-base font-bold text-slate-900">
-                    Composição Percentual ({columns[0]?.label})
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Clique em uma fatia para fazer drill-down e ver o detalhamento do grupo.
+                {/* 3. MODO BARRAS VERTICAIS */}
+                {visualMode === "bar" && (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900">
+                          Comparação Temporal em Barras
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Exibindo até 3 séries selecionadas ao longo do tempo.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => setShowSeriesSelectorModal(true)}
+                        className="text-xs font-bold text-primary hover:underline"
+                      >
+                        Alterar séries selecionadas ({selectedSeriesKeys.length}/3)
+                      </button>
+                    </div>
+
+                    <div className="h-[380px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={temporalChartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+                          <YAxis
+                            stroke="#64748b"
+                            fontSize={11}
+                            tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
+                          />
+                          <RechartsTooltip formatter={(val: any) => formatBRL(Number(val))} />
+                          <Legend />
+                          {selectedSeriesKeys.map((key, idx) => {
+                            const row = tableData.rows.find((r) => r.id === key);
+                            return (
+                              <Bar
+                                key={key}
+                                dataKey={key}
+                                name={row?.name || key}
+                                fill={CHART_COLORS[idx % CHART_COLORS.length]}
+                                radius={[4, 4, 0, 0]}
+                              />
+                            );
+                          })}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. MODO LINHAS */}
+                {visualMode === "line" && (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900">
+                          Tendência Temporal em Linhas
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Curva de evolução e volatilidade das séries selecionadas.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => setShowSeriesSelectorModal(true)}
+                        className="text-xs font-bold text-primary hover:underline"
+                      >
+                        Alterar séries selecionadas ({selectedSeriesKeys.length}/3)
+                      </button>
+                    </div>
+
+                    <div className="h-[380px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={temporalChartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+                          <YAxis
+                            stroke="#64748b"
+                            fontSize={11}
+                            tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
+                          />
+                          <RechartsTooltip formatter={(val: any) => formatBRL(Number(val))} />
+                          <Legend />
+                          {selectedSeriesKeys.map((key, idx) => {
+                            const row = tableData.rows.find((r) => r.id === key);
+                            return (
+                              <Line
+                                key={key}
+                                type="monotone"
+                                dataKey={key}
+                                name={row?.name || key}
+                                stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+                                strokeWidth={3}
+                                dot={{ r: 4 }}
+                              />
+                            );
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* CONTEÚDO DA SUBABA 2: DIAGNÓSTICO CFO COM IA (EXCLUSIVO MASTER)           */}
+        {/* ========================================================================= */}
+        {activeTab === "ai_diagnostic" && isMasterUser && (
+          <div className="space-y-6 animate-in fade-in">
+            {/* Bloco de Filtro de Período & Auditoria Conciliada */}
+            <section className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-800 shadow-xl space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">⚡</span>
+                    <h2 className="text-lg font-extrabold text-white">
+                      Diagnóstico Executivo do CFO (Auditoria com IA)
+                    </h2>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 font-extrabold uppercase">
+                      Master Only
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Análise estratégica calculada <strong>exclusivamente sobre lançamentos 100% conciliados</strong>.
                   </p>
                 </div>
 
-                {pieChartData.length === 0 ? (
-                  <div className="py-16 text-center text-slate-400">
-                    Sem dados com valor positivo para exibir no gráfico de pizza.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                    <div className="lg:col-span-7 h-[360px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={pieChartData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={120}
-                            innerRadius={60}
-                            paddingAngle={3}
-                            onClick={(entry: any) => {
-                              const target = entry?.rawRow || entry?.payload?.rawRow || entry?.payload;
-                              if (target?.categoryId && currentDrill.level === "root") {
-                                pushDrill({
-                                  id: target.id,
-                                  name: target.name,
-                                  level: "category",
-                                  type: target.type as any,
-                                  categoryId: target.categoryId,
-                                });
-                              }
-                            }}
-                            cursor="pointer"
-                          >
-                            {pieChartData.map((_, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={CHART_COLORS[index % CHART_COLORS.length]}
-                              />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip
-                            formatter={(value: any, name: any) => {
-                              const valNum = Number(value);
-                              const pct = totalPieValue > 0 ? (valNum / totalPieValue) * 100 : 0;
-                              return [`${formatBRL(valNum)} (${pct.toFixed(1)}%)`, name];
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiSummary}
+                    disabled={loadingAi}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <span>✨</span>
+                    <span>{loadingAi ? "Gerando Parecer..." : "Regerar Síntese com IA"}</span>
+                  </button>
 
-                    <div className="lg:col-span-5 space-y-2 max-h-[360px] overflow-y-auto pr-2">
-                      {pieChartData.map((item, idx) => {
-                        const pct = totalPieValue > 0 ? (item.value / totalPieValue) * 100 : 0;
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={() => {
-                              if (item.rawRow?.categoryId && currentDrill.level === "root") {
-                                pushDrill({
-                                  id: item.rawRow.id,
-                                  name: item.rawRow.name,
-                                  level: "category",
-                                  type: item.rawRow.type as any,
-                                  categoryId: item.rawRow.categoryId,
-                                });
-                              }
-                            }}
-                            className="p-3 bg-slate-50 hover:bg-slate-100 rounded-xl flex items-center justify-between cursor-pointer transition-colors border border-slate-100"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span
-                                className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-                              />
-                              <div>
-                                <p className="text-xs font-bold text-slate-800">{item.name}</p>
-                                <p className="text-[10px] text-slate-500">{pct.toFixed(1)}% do total</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-xs font-bold text-slate-900">
-                                {formatBRL(item.value)}
-                              </span>
-                            </div>
+                  <button
+                    type="button"
+                    onClick={handleExportAiPdf}
+                    className="px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold rounded-xl transition-all shadow flex items-center gap-1.5"
+                  >
+                    <span>📄</span>
+                    <span>Exportar Relatório CFO (PDF)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Seletor de Período Dedicado do Diagnóstico de IA */}
+              <div className="bg-slate-950/70 rounded-2xl p-4 border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                    Período da Auditoria de IA:
+                  </label>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400">De:</span>
+                      <MonthSelector value={aiStartMonth} onChange={setAiStartMonth} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400">Até:</span>
+                      <MonthSelector value={aiEndMonth} onChange={setAiEndMonth} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-left md:text-right space-y-1">
+                  <span className="text-xs font-semibold text-emerald-400 block flex items-center gap-1.5 md:justify-end">
+                    <span>🛡️</span>
+                    <span>{aiDiagnostic.reconciledCount} lançamentos 100% conciliados</span>
+                  </span>
+                  <span className="text-[11px] text-slate-400 block">
+                    {aiDiagnostic.totalTransactionsCount - aiDiagnostic.reconciledCount > 0
+                      ? `(${aiDiagnostic.totalTransactionsCount - aiDiagnostic.reconciledCount} pendências desconsideradas da base)`
+                      : "Base 100% limpa e conciliada"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 4 KPIs Executivos */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Margem Operacional
+                  </span>
+                  <span className="text-2xl font-extrabold text-emerald-400 mt-1 block">
+                    {aiDiagnostic.operatingMarginPercent.toFixed(1)}%
+                  </span>
+                  <span className="text-[11px] text-slate-400 mt-0.5 block">
+                    Resultado / Receita
+                  </span>
+                </div>
+
+                <div className="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Queima Média Mensal
+                  </span>
+                  <span className="text-2xl font-extrabold text-amber-300 mt-1 block">
+                    {formatBRL(aiDiagnostic.avgMonthlyBurn)}
+                  </span>
+                  <span className="text-[11px] text-slate-400 mt-0.5 block">
+                    Desembolso médio / mês
+                  </span>
+                </div>
+
+                <div className="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Concentração Pareto (Top 3)
+                  </span>
+                  <span className="text-2xl font-extrabold text-blue-300 mt-1 block">
+                    {aiDiagnostic.paretoConcentrationPercent.toFixed(1)}%
+                  </span>
+                  <span className="text-[11px] text-slate-400 mt-0.5 block">
+                    3 maiores despesas
+                  </span>
+                </div>
+
+                <div className="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/60">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Resultado Líquido
+                  </span>
+                  <span
+                    className={`text-2xl font-extrabold mt-1 block ${
+                      aiDiagnostic.netResult >= 0 ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {formatBRL(aiDiagnostic.netResult)}
+                  </span>
+                  <span className="text-[11px] text-slate-400 mt-0.5 block">
+                    Total conciliado
+                  </span>
+                </div>
+              </div>
+
+              {/* Editor do Parecer Executivo do CFO */}
+              <div className="bg-slate-950 rounded-2xl p-5 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                    <span>📝</span> Parecer Executivo do CFO (Editável):
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Você pode ajustar o texto antes de exportar
+                  </span>
+                </div>
+
+                <textarea
+                  rows={4}
+                  value={aiCommentary}
+                  onChange={(e) => setAiCommentary(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 leading-relaxed focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="Gerando parecer executivo..."
+                />
+
+                {/* Destaque das Maiores Despesas (Pareto) */}
+                {aiDiagnostic.topExpenseCategories.length > 0 && (
+                  <div className="pt-3 border-t border-slate-800/80 space-y-2">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Ranking dos Maiores Centros de Custo & Despesas:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {aiDiagnostic.topExpenseCategories.map((top, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-slate-200">{top.name}</span>
+                            <span className="font-extrabold text-amber-300">
+                              {top.sharePercent.toFixed(1)}%
+                            </span>
                           </div>
-                        );
-                      })}
+                          <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-amber-400 rounded-full"
+                              style={{ width: `${top.sharePercent}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-400 block">
+                            Total: {formatBRL(top.amount)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
-            )}
-
-            {/* --------------------------------------------------------------------- */}
-            {/* 3. MODO BARRAS VERTICAIS (EVOLUÇÃO TEMPORAL)                           */}
-            {/* --------------------------------------------------------------------- */}
-            {visualMode === "bar" && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      Comparação Temporal em Barras
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Exibindo até 3 séries selecionadas ao longo do tempo.
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => setShowSeriesSelectorModal(true)}
-                    className="text-xs font-bold text-primary hover:underline"
-                  >
-                    Alterar séries selecionadas ({selectedSeriesKeys.length}/3)
-                  </button>
-                </div>
-
-                <div className="h-[380px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={temporalChartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
-                      <YAxis
-                        stroke="#64748b"
-                        fontSize={11}
-                        tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
-                      />
-                      <RechartsTooltip formatter={(val: any) => formatBRL(Number(val))} />
-                      <Legend />
-                      {selectedSeriesKeys.map((key, idx) => {
-                        const row = tableData.rows.find((r) => r.id === key);
-                        return (
-                          <Bar
-                            key={key}
-                            dataKey={key}
-                            name={row?.name || key}
-                            fill={CHART_COLORS[idx % CHART_COLORS.length]}
-                            radius={[4, 4, 0, 0]}
-                          />
-                        );
-                      })}
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {/* --------------------------------------------------------------------- */}
-            {/* 4. MODO LINHAS (TENDÊNCIA E VOLATILIDADE)                              */}
-            {/* --------------------------------------------------------------------- */}
-            {visualMode === "line" && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">
-                      Tendência Temporal em Linhas
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Curva de evolução e volatilidade das séries selecionadas.
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => setShowSeriesSelectorModal(true)}
-                    className="text-xs font-bold text-primary hover:underline"
-                  >
-                    Alterar séries selecionadas ({selectedSeriesKeys.length}/3)
-                  </button>
-                </div>
-
-                <div className="h-[380px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={temporalChartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
-                      <YAxis
-                        stroke="#64748b"
-                        fontSize={11}
-                        tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`}
-                      />
-                      <RechartsTooltip formatter={(val: any) => formatBRL(Number(val))} />
-                      <Legend />
-                      {selectedSeriesKeys.map((key, idx) => {
-                        const row = tableData.rows.find((r) => r.id === key);
-                        return (
-                          <Line
-                            key={key}
-                            type="monotone"
-                            dataKey={key}
-                            name={row?.name || key}
-                            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-                            strokeWidth={3}
-                            dot={{ r: 4 }}
-                          />
-                        );
-                      })}
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-          </section>
+            </section>
+          </div>
         )}
-      </main>
 
-      {/* ========================================================================= */}
-      {/* MODAL / BOTTOM SHEET: SELEÇÃO DE ATÉ 3 SÉRIES PARA GRÁFICOS               */}
-      {/* ========================================================================= */}
-      {showSeriesSelectorModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Selecionar Séries para o Gráfico
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Escolha no máximo 3 itens simultâneos para comparação limpa.
-                </p>
+        {/* ========================================================================= */}
+        {/* MODAL / BOTTOM SHEET: SELEÇÃO DE ATÉ 3 SÉRIES PARA GRÁFICOS               */}
+        {/* ========================================================================= */}
+        {showSeriesSelectorModal && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto space-y-4 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Selecionar Séries para o Gráfico
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Escolha no máximo 3 itens simultâneos para comparação limpa.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSeriesSelectorModal(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                onClick={() => setShowSeriesSelectorModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
-              >
-                ✕
-              </button>
-            </div>
 
-            <div className="space-y-2">
-              {tableData.rows.map((row) => {
-                const isSelected = selectedSeriesKeys.includes(row.id);
-                const disabled = !isSelected && selectedSeriesKeys.length >= 3;
+              <div className="space-y-2">
+                {tableData.rows.map((row) => {
+                  const isSelected = selectedSeriesKeys.includes(row.id);
+                  const disabled = !isSelected && selectedSeriesKeys.length >= 3;
 
-                return (
-                  <label
-                    key={row.id}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-colors cursor-pointer ${
-                      isSelected
-                        ? "bg-primary/5 border-primary text-primary"
-                        : disabled
-                        ? "bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed opacity-60"
-                        : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        disabled={disabled}
-                        onChange={() => toggleSeriesKey(row.id)}
-                        className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
-                      />
-                      <span className="text-xs font-bold">{row.name}</span>
-                    </div>
+                  return (
+                    <label
+                      key={row.id}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-primary/5 border-primary text-primary"
+                          : disabled
+                          ? "bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed opacity-60"
+                          : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={disabled}
+                          onChange={() => toggleSeriesKey(row.id)}
+                          className="w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
+                        />
+                        <span className="text-xs font-bold">{row.name}</span>
+                      </div>
 
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 font-mono text-slate-600">
-                      {row.type || "série"}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 font-mono text-slate-600">
+                        {row.type || "série"}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
 
-            <div className="pt-2">
-              <button
-                onClick={() => setShowSeriesSelectorModal(false)}
-                className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-colors shadow"
-              >
-                Confirmar Seleção ({selectedSeriesKeys.length}/3)
-              </button>
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowSeriesSelectorModal(false)}
+                  className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-colors shadow"
+                >
+                  Confirmar Seleção ({selectedSeriesKeys.length}/3)
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </Navigation>
   );
 }

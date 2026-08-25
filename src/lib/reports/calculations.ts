@@ -77,14 +77,15 @@ export function isVisualCompatible(granularity: Granularity, visual: VisualMode)
  */
 export function generateMonthRange(startMonth: string, endMonth: string): string[] {
   if (!startMonth || !endMonth) return [startMonth || endMonth || "2026-01"];
-  if (startMonth > endMonth) {
-    const temp = startMonth;
-    startMonth = endMonth;
-    endMonth = temp;
+  let s = startMonth;
+  let e = endMonth;
+  if (s > e) {
+    s = endMonth;
+    e = startMonth;
   }
 
-  const [startYear, startM] = startMonth.split("-").map(Number);
-  const [endYear, endM] = endMonth.split("-").map(Number);
+  const [startYear, startM] = s.split("-").map(Number);
+  const [endYear, endM] = e.split("-").map(Number);
 
   const months: string[] = [];
   let curYear = startYear;
@@ -226,7 +227,7 @@ export function formatBRL(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(value);
+  }).format(value || 0);
 }
 
 /**
@@ -249,7 +250,7 @@ export function calculateAV(value: number, groupTotal: number): number {
  * Calcula Análise Horizontal (AH%): variação percentual em relação ao período anterior
  */
 export function calculateAH(currentValue: number, previousValue: number | undefined): number | null {
-  if (previousValue === undefined) return null;
+  if (previousValue === undefined || previousValue === null) return null;
   if (previousValue === 0) {
     if (currentValue === 0) return 0;
     return currentValue > 0 ? 100 : -100;
