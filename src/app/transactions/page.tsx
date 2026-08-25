@@ -65,12 +65,22 @@ function TransactionsContent() {
   const [transferMenuId, setTransferMenuId] = useState<string | null>(null);
   const [linkMenuId, setLinkMenuId] = useState<string | null>(null);
   const [allReceivables, setAllReceivables] = useState<any[]>([]);
+  const [contractsList, setContractsList] = useState<{ id: string; client_name: string; title: string }[]>([]);
   const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [showAccountFilter, setShowAccountFilter] = useState(false);
 
+  // Modal de Vinculação de Recebíveis / Contratos
+  const [linkingModalTrx, setLinkingModalTrx] = useState<Transaction | null>(null);
+  const [linkingSearch, setLinkingSearch] = useState("");
+
   // Filtro de Status de Conciliação
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "reconciled">("all");
+
+  // Filtro por recebível específico vindo da URL (ex: rastreabilidade de Contratos)
+  const [filterReceivableId, setFilterReceivableId] = useState<string | null>(() => {
+    return searchParams.get("receivable_id") || null;
+  });
 
   // Estados do Motor de Sugestões Inteligentes
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -170,6 +180,12 @@ function TransactionsContent() {
       .eq("is_active", true)
       .order("due_date", { ascending: true });
     setAllReceivables(allRecData || []);
+
+    const { data: cData } = await supabase
+      .from("contracts")
+      .select("id, client_name, title")
+      .eq("company_id", selectedCompany.id);
+    setContractsList(cData || []);
     setLoading(false);
   }, [supabase, selectedMonth, selectedCompany]);
 
@@ -197,6 +213,53 @@ function TransactionsContent() {
       setSelectedSuggestionIds(Array.from(suggestionsMap.keys()));
     }
   }, [showReviewModal, suggestionsMap]);
+
+  // Se veio receivable_id na URL, busca a transação correspondente para garantir que o mês selecionado seja exatamente o da transação bancária
+  useEffect(() => {
+    const urlRecId = searchParams.get("receivable_id");
+    if (!urlRecId || !selectedCompany) return;
+
+    async function syncMonthForReceivable() {
+      // 1. Procura em transactions por receivable_id
+      const { data: trxData } = await supabase
+        .from("transactions")
+        .select("month_ref")
+        .eq("company_id", selectedCompany!.id)
+        .eq("receivable_id", urlRecId)
+        .maybeSingle();
+
+      if (trxData?.month_ref) {
+        setSelectedMonth(trxData.month_ref);
+        return;
+      }
+
+      // 2. Procura em receivables pelo linked_transaction_id ou received_at
+      const { data: recData } = await supabase
+        .from("receivables")
+        .select("received_at, linked_transaction_id")
+        .eq("id", urlRecId)
+        .maybeSingle();
+
+      if (recData?.linked_transaction_id) {
+        const { data: linkedTrx } = await supabase
+          .from("transactions")
+          .select("month_ref")
+          .eq("id", recData.linked_transaction_id)
+          .maybeSingle();
+
+        if (linkedTrx?.month_ref) {
+          setSelectedMonth(linkedTrx.month_ref);
+          return;
+        }
+      }
+
+      if (recData?.received_at) {
+        setSelectedMonth(recData.received_at.substring(0, 7));
+      }
+    }
+
+    syncMonthForReceivable();
+  }, [searchParams, selectedCompany, supabase]);
 
   // Contadores para o filtro de status
   const statusCounts = useMemo(() => {
@@ -254,6 +317,11 @@ function TransactionsContent() {
   // Filtragem composta
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
+      // 0. Filtro por recebível específico vindo de contrato
+      if (filterReceivableId && t.receivable_id !== filterReceivableId) {
+        return false;
+      }
+
       // 1. Filtro de Status de Conciliação
       if (filterStatus === "pending" && (t.is_reconciled || t.is_internal_transfer)) {
         return false;
@@ -486,24 +554,38 @@ function TransactionsContent() {
     const rec = allReceivables.find((r) => r.id === receivableId);
     if (!trx || !rec) return;
 
-    const newReceived = Number(rec.received_amount || 0) + Number(trx.amount);
-    const newStatus = newReceived >= Number(rec.amount) ? "paid" : "partial";
+    const trxVal = Math.abs(Number(trx.amount));
+    const isFullyPaid = trxVal >= Number(rec.amount);
+    const newStatus: "received" | "partial" = isFullyPaid ? "received" : "partial";
 
-    await supabase
+    // 1. Atualiza o recebível com o valor real e exato da transação bancária
+    const { error: recErr } = await supabase
       .from("receivables")
       .update({
-        received_amount: newReceived,
+        received_amount: trxVal,
         status: newStatus,
+        received_at: trx.date,
+        linked_transaction_id: transactionId,
       })
       .eq("id", receivableId);
 
-    const updateData: any = { receivable_id: receivableId };
+    if (recErr) console.error("Erro ao atualizar recebível:", recErr);
+
+    // 2. Atualiza a transação bancária
+    const updateData: any = {
+      receivable_id: receivableId,
+      is_reconciled: true,
+    };
     if (rec.category_id) {
       updateData.category_id = rec.category_id;
-      updateData.is_reconciled = true;
     }
 
-    await supabase.from("transactions").update(updateData).eq("id", transactionId);
+    const { error: trxErr } = await supabase
+      .from("transactions")
+      .update(updateData)
+      .eq("id", transactionId);
+
+    if (trxErr) console.error("Erro ao atualizar transação:", trxErr);
 
     setTransactions((prev) =>
       prev.map((t) => (t.id === transactionId ? { ...t, ...updateData } : t))
@@ -511,7 +593,15 @@ function TransactionsContent() {
 
     setAllReceivables((prev) =>
       prev.map((r) =>
-        r.id === receivableId ? { ...r, received_amount: newReceived, status: newStatus } : r
+        r.id === receivableId
+          ? {
+              ...r,
+              received_amount: trxVal,
+              status: newStatus,
+              received_at: trx.date,
+              linked_transaction_id: transactionId,
+            }
+          : r
       )
     );
   }
@@ -522,25 +612,35 @@ function TransactionsContent() {
 
     const rec = allReceivables.find((r) => r.id === trx.receivable_id);
     if (rec) {
-      const newReceived = Math.max(0, Number(rec.received_amount || 0) - Number(trx.amount));
-      const newStatus = newReceived <= 0 ? "open" : newReceived >= Number(rec.amount) ? "paid" : "partial";
-
       await supabase
         .from("receivables")
         .update({
-          received_amount: newReceived,
-          status: newStatus,
+          received_amount: 0,
+          status: "open",
+          received_at: null,
+          linked_transaction_id: null,
         })
         .eq("id", rec.id);
 
       setAllReceivables((prev) =>
         prev.map((r) =>
-          r.id === rec.id ? { ...r, received_amount: newReceived, status: newStatus } : r
+          r.id === rec.id
+            ? {
+                ...r,
+                received_amount: 0,
+                status: "open",
+                received_at: null,
+                linked_transaction_id: null,
+              }
+            : r
         )
       );
     }
 
-    await supabase.from("transactions").update({ receivable_id: null }).eq("id", transactionId);
+    await supabase
+      .from("transactions")
+      .update({ receivable_id: null })
+      .eq("id", transactionId);
 
     setTransactions((prev) =>
       prev.map((t) => (t.id === transactionId ? { ...t, receivable_id: null } : t))
@@ -609,7 +709,20 @@ function TransactionsContent() {
     return `${day}/${month}`;
   }
 
-  const openReceivables = allReceivables.filter((r) => r.status !== "paid");
+  const openReceivables = useMemo(() => {
+    return allReceivables.filter((r) => r.status !== "received" && r.status !== "paid");
+  }, [allReceivables]);
+
+  const filteredOpenReceivables = useMemo(() => {
+    if (!linkingSearch.trim()) return openReceivables;
+    const term = linkingSearch.toLowerCase();
+    return openReceivables.filter((r) => {
+      const contract = contractsList.find((c) => c.id === r.contract_id);
+      const title = contract ? `${contract.client_name} ${contract.title}` : `${r.client_name} ${r.description}`;
+      const nf = r.nf_number || "";
+      return title.toLowerCase().includes(term) || nf.toLowerCase().includes(term);
+    });
+  }, [openReceivables, contractsList, linkingSearch]);
 
   function toggleAccount(accountId: string) {
     setSelectedAccountIds((prev) =>
@@ -712,6 +825,23 @@ function TransactionsContent() {
             </button>
           </div>
         </div>
+
+        {/* Banner de Filtro de Recebível Vinculado (vindo de Contratos) */}
+        {filterReceivableId && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-center justify-between gap-3 text-xs text-indigo-900 font-semibold shadow-xs">
+            <div className="flex items-center gap-2">
+              <span>🔗</span>
+              <span>Filtrando pela transação bancária vinculada ao recebível selecionado no contrato.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFilterReceivableId(null)}
+              className="px-2.5 py-1 bg-white hover:bg-indigo-100 border border-indigo-300 rounded-lg text-indigo-800 text-xs font-bold transition-colors shadow-2xs"
+            >
+              Limpar Filtro ✕
+            </button>
+          </div>
+        )}
 
         {/* ========================================================================= */}
         {/* BANNER INTELIGENTE DE AUTO-CATEGORIZAÇÃO                                   */}
@@ -1033,65 +1163,60 @@ function TransactionsContent() {
                               >
                                 {trx.description}
                               </span>
-                              {trx.receivable_id ? (
-                                (() => {
-                                  const linkedRec = allReceivables.find((r) => r.id === trx.receivable_id);
-                                  if (!linkedRec) return null;
+                              {(() => {
+                                const linkedRec = trx.receivable_id
+                                  ? allReceivables.find((r) => r.id === trx.receivable_id)
+                                  : null;
+
+                                if (trx.receivable_id && linkedRec) {
+                                  const contract = contractsList.find((c) => c.id === linkedRec.contract_id);
+                                  const badgeLabel = contract
+                                    ? `${contract.client_name} (${linkedRec.installment_number === 0 ? "Entrada" : `Parc. ${linkedRec.installment_number}`})`
+                                    : linkedRec.nf_number
+                                    ? `NF ${linkedRec.nf_number}`
+                                    : linkedRec.client_name;
+
                                   return (
                                     <button
                                       onClick={() => handleUnlinkReceivable(trx.id)}
-                                      className="text-xs px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center gap-1 whitespace-nowrap"
-                                      title="Clique para desvincular"
+                                      className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 flex items-center gap-1 whitespace-nowrap font-bold shadow-2xs"
+                                      title="Clique para desvincular deste recebível"
                                     >
-                                      {linkedRec.nf_number ? `NF ${linkedRec.nf_number}` : linkedRec.client_name} ✕
+                                      <span>🔗 {badgeLabel}</span>
+                                      <span className="text-red-500 font-bold ml-0.5">✕</span>
                                     </button>
                                   );
-                                })()
-                              ) : trx.amount > 0 && !trx.is_internal_transfer ? (
-                                <>
-                                  <button
-                                    onClick={() => setLinkMenuId(linkMenuId === trx.id ? null : trx.id)}
-                                    className="text-xs text-indigo-500 hover:bg-indigo-50 px-1.5 py-0.5 rounded"
-                                    title="Vincular recebível"
-                                  >
-                                    🔗
-                                  </button>
-                                  {linkMenuId === trx.id && (
-                                    <>
-                                      <div className="fixed inset-0 z-10" onClick={() => setLinkMenuId(null)} />
-                                      <div className={`absolute left-0 ${dropdownPos} z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[280px] max-h-[300px] overflow-y-auto`}>
-                                        {openReceivables.length === 0 ? (
-                                          <div className="px-3 py-2 text-sm text-gray-400">Nenhum recebível em aberto</div>
-                                        ) : (
-                                          openReceivables.map((r) => {
-                                            const remaining = Number(r.amount) - Number(r.received_amount || 0);
-                                            return (
-                                              <button
-                                                key={r.id}
-                                                onClick={() => handleLinkReceivable(trx.id, r.id)}
-                                                className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                                              >
-                                                <div className="flex items-center gap-2">
-                                                  {r.nf_number && (
-                                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium whitespace-nowrap">
-                                                      NF {r.nf_number}
-                                                    </span>
-                                                  )}
-                                                  <span className="font-medium">{r.client_name}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
-                                                  <span>{formatCurrency(remaining)} a receber</span>
-                                                  {r.status === "partial" && <span className="text-orange-500">parcial</span>}
-                                                </div>
-                                              </button>
-                                            );
-                                          })
-                                        )}
-                                      </div>
-                                    </>
-                                  )}
-                                </>
-                              ) : null}
+                                }
+
+                                if (trx.amount > 0 && !trx.is_internal_transfer) {
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      {trx.receivable_id && !linkedRec && (
+                                        <button
+                                          onClick={() => handleUnlinkReceivable(trx.id)}
+                                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 flex items-center gap-1 font-semibold"
+                                          title="Limpar vínculo antigo inexistente"
+                                        >
+                                          ⚠️ Limpar Vínculo ✕
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => {
+                                          setLinkingModalTrx(trx);
+                                          setLinkingSearch("");
+                                        }}
+                                        className="text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-1 rounded-lg font-bold flex items-center gap-1 transition-colors border border-indigo-200 shadow-2xs"
+                                        title="Vincular a um contrato ou recebível"
+                                      >
+                                        <span>🔗</span>
+                                        <span className="text-[11px]">Vincular</span>
+                                      </button>
+                                    </div>
+                                  );
+                                }
+
+                                return null;
+                              })()}
                             </div>
                           )}
                         </td>
@@ -1436,6 +1561,144 @@ function TransactionsContent() {
             receivables={receivables}
             bankAccounts={bankAccounts}
           />
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL DE VINCULAÇÃO DE RECEBIMENTO AO CONTRATO OU TÍTULO                  */}
+        {/* ========================================================================= */}
+        {linkingModalTrx && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+              {/* Header do Modal */}
+              <div className="p-5 border-b border-gray-100 bg-slate-50 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                    <span>🔗 Vincular Recebimento</span>
+                  </h3>
+                  <div className="mt-2 bg-white border border-gray-200 rounded-xl p-3 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 font-medium">Transação Bancária:</span>
+                      <span className="font-extrabold text-emerald-700 text-sm">
+                        {formatCurrency(Math.abs(linkingModalTrx.amount))}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-gray-600">
+                      <span className="truncate max-w-[280px] font-semibold">{linkingModalTrx.description}</span>
+                      <span>{formatDate(linkingModalTrx.date)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setLinkingModalTrx(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Busca e Lista */}
+              <div className="p-4 space-y-3 flex-1 overflow-hidden flex flex-col">
+                <input
+                  type="text"
+                  value={linkingSearch}
+                  onChange={(e) => setLinkingSearch(e.target.value)}
+                  placeholder="🔍 Buscar por cliente, contrato ou NF..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  autoFocus
+                />
+
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  {filteredOpenReceivables.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 text-xs">
+                      {openReceivables.length === 0
+                        ? "Nenhum recebível em aberto disponível no momento."
+                        : "Nenhum resultado encontrado para a busca."}
+                    </div>
+                  ) : (
+                    filteredOpenReceivables.map((r) => {
+                      const contract = contractsList.find((c) => c.id === r.contract_id);
+                      const titleHeader = contract
+                        ? `${contract.client_name} — ${contract.title}`
+                        : `${r.client_name} — ${r.description}`;
+
+                      const installmentBadge =
+                        r.installment_number !== null && r.total_installments
+                          ? r.installment_number === 0
+                            ? "Entrada"
+                            : `Parcela ${r.installment_number}/${r.total_installments}`
+                          : null;
+
+                      const remaining = Math.max(0, Number(r.amount) - Number(r.received_amount || 0));
+
+                      return (
+                        <div
+                          key={r.id}
+                          onClick={() => {
+                            handleLinkReceivable(linkingModalTrx.id, r.id);
+                            setLinkingModalTrx(null);
+                          }}
+                          className="p-3 rounded-xl border border-gray-200 hover:border-primary/60 hover:bg-indigo-50/40 cursor-pointer transition-all flex items-center justify-between gap-3 group"
+                        >
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs text-gray-900 group-hover:text-primary transition-colors truncate">
+                                {titleHeader}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 flex-wrap">
+                              {installmentBadge ? (
+                                <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded font-bold text-[10px]">
+                                  📁 {installmentBadge}
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded font-bold text-[10px]">
+                                  📋 Título Avulso
+                                </span>
+                              )}
+                              {r.nf_number && (
+                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded font-semibold text-[10px]">
+                                  NF {r.nf_number}
+                                </span>
+                              )}
+                              <span>• Vencimento: {formatDate(r.due_date)}</span>
+                            </div>
+                          </div>
+
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-xs font-extrabold text-gray-900 block">
+                              {formatCurrency(Number(r.amount))}
+                            </span>
+                            {r.status === "partial" && (
+                              <span className="text-[10px] text-amber-600 font-bold block">
+                                Restam: {formatCurrency(remaining)}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-primary font-bold group-hover:underline block mt-0.5">
+                              Vincular →
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Rodapé */}
+              <div className="p-3.5 bg-slate-50 border-t border-gray-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setLinkingModalTrx(null)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </Navigation>
