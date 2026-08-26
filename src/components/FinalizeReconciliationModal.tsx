@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 import { getWhiteLabelConfig } from "@/lib/whitelabel";
+import { computeAndSaveMonthlyClosures } from "@/lib/ledger/closures";
 
 type Transaction = {
   id: string;
@@ -59,6 +61,7 @@ export default function FinalizeReconciliationModal({
   bankAccounts = [],
 }: Props) {
   const supabase = createClient();
+  const { selectedCompany } = useCompany();
   const wl = getWhiteLabelConfig();
 
   const [step, setStep] = useState<"summary" | "sending" | "done" | "error">("summary");
@@ -345,6 +348,11 @@ export default function FinalizeReconciliationModal({
           finalized_at: new Date().toISOString(),
           sent_at: new Date().toISOString(),
         });
+      }
+
+      // 6.1 Salva/atualiza fechamento contábil mensal das contas bancárias (Ledger Pattern)
+      if (selectedCompany?.id) {
+        await computeAndSaveMonthlyClosures(supabase, selectedCompany.id, monthRef);
       }
 
       // 7. Gerar recebíveis recorrentes do próximo mês

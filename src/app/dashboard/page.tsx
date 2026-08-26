@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import Navigation from "@/components/Navigation";
 import MonthSelector from "@/components/MonthSelector";
+import { getCompanyAccountLedgerState } from "@/lib/ledger/closures";
 
 export default function DashboardPage() {
   const supabase = createClient();
@@ -31,12 +32,15 @@ export default function DashboardPage() {
   const [pendingReceivablesCount, setPendingReceivablesCount] = useState(0);
   const [overdueReceivables, setOverdueReceivables] = useState(0);
 
-  // Saldos por conta
+  // Saldos por conta (Ledger Pattern)
   const [accountBalances, setAccountBalances] = useState<{
     id: string;
     name: string;
     initialBalance: number;
+    openingBalance: number;
+    monthMovement: number;
     currentBalance: number;
+    isMonthReconciled: boolean;
     hasPending: boolean;
     pendingCount: number;
     pendingMonths: string[];
@@ -59,27 +63,51 @@ export default function DashboardPage() {
 
     setLoading(true);
 
-    // 1. Transações do mês
-    const { data: transactions } = await supabase
-      .from("transactions")
-      .select("amount, is_reconciled")
-      .eq("company_id", selectedCompany.id)
-      .eq("month_ref", selectedMonth);
+    const step = 1000;
 
-    const trxs = transactions || [];
+    // 1. Transações do mês (busca com paginação para garantir que meses grandes não sejam truncados)
+    let monthTrxs: Array<{
+      amount: number;
+      is_reconciled: boolean;
+      is_internal_transfer: boolean;
+    }> = [];
+    let fromMonth = 0;
+    let hasMoreMonth = true;
 
-    const income = trxs
-      .filter((t) => t.amount > 0)
+    while (hasMoreMonth) {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("amount, is_reconciled, is_internal_transfer")
+        .eq("company_id", selectedCompany.id)
+        .eq("month_ref", selectedMonth)
+        .range(fromMonth, fromMonth + step - 1);
+
+      if (error || !data || data.length === 0) {
+        hasMoreMonth = false;
+        break;
+      }
+
+      monthTrxs = monthTrxs.concat(data as any);
+      if (data.length < step) {
+        hasMoreMonth = false;
+      } else {
+        fromMonth += step;
+      }
+    }
+
+    const income = monthTrxs
+      .filter((t) => t.amount > 0 && !t.is_internal_transfer)
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const expense = trxs
-      .filter((t) => t.amount < 0)
+    const expense = monthTrxs
+      .filter((t) => t.amount < 0 && !t.is_internal_transfer)
       .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
 
     setTotalIncome(income);
     setTotalExpense(expense);
-    setTransactionsCount(trxs.length);
-    setReconciledCount(trxs.filter((t) => t.is_reconciled).length);
+    setTransactionsCount(monthTrxs.length);
+    // Transações conciliadas ou transferências internas contam como tratadas/resolvidas
+    setReconciledCount(monthTrxs.filter((t) => t.is_reconciled || t.is_internal_transfer).length);
 
     // 2. Recebíveis pendentes e vencidos
     const today = new Date().toISOString().split("T")[0];
@@ -106,47 +134,30 @@ export default function DashboardPage() {
       overdue.reduce((sum, r) => sum + Number(r.amount), 0)
     );
 
-    // 3. Buscar contas bancárias e calcular saldos conciliados
-    const { data: accounts } = await supabase
-      .from("bank_accounts")
-      .select("id, name, initial_balance, initial_balance_date, is_active")
-      .eq("company_id", selectedCompany.id)
-      .eq("is_active", true)
-      .order("name");
+    // 3. Buscar contas bancárias e calcular saldos via Ledger Pattern
+    try {
+      const ledgerItems = await getCompanyAccountLedgerState(
+        supabase,
+        selectedCompany.id,
+        selectedMonth
+      );
 
-    if (accounts && accounts.length > 0) {
-      // Buscar TODAS as transações até o mês selecionado
-      const { data: allTrxs } = await supabase
-        .from("transactions")
-        .select("amount, is_reconciled, bank_account_id, month_ref")
-        .eq("company_id", selectedCompany.id)
-        .lte("month_ref", selectedMonth);
-
-      const allTransactions = allTrxs || [];
-
-      const balances = accounts.map((acc) => {
-        const accTrxs = allTransactions.filter(
-          (t) => t.bank_account_id === acc.id
-        );
-        const pending = accTrxs.filter((t) => !t.is_reconciled);
-        const pendingMonths = [...new Set(pending.map((t) => t.month_ref))].sort();
-        const reconciledSum = accTrxs
-          .filter((t) => t.is_reconciled)
-          .reduce((sum, t) => sum + Number(t.amount), 0);
-
-        return {
-          id: acc.id,
-          name: acc.name,
-          initialBalance: Number(acc.initial_balance || 0),
-          currentBalance: Number(acc.initial_balance || 0) + reconciledSum,
-          hasPending: pending.length > 0,
-          pendingCount: pending.length,
-          pendingMonths,
-        };
-      });
-      setAccountBalances(balances);
-    } else {
-      setAccountBalances([]);
+      setAccountBalances(
+        ledgerItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          initialBalance: item.initialBalance,
+          openingBalance: item.openingBalance,
+          monthMovement: item.monthMovement,
+          currentBalance: item.currentBalance,
+          isMonthReconciled: item.isMonthReconciled,
+          hasPending: item.hasHistoricalPendency,
+          pendingCount: item.pendingCount,
+          pendingMonths: item.pendingMonths,
+        }))
+      );
+    } catch (ledgerErr) {
+      console.error("Erro ao calcular ledger de saldos:", ledgerErr);
     }
 
     setLoading(false);
@@ -196,7 +207,7 @@ export default function DashboardPage() {
                     Saldo do mês
                   </span>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
+                    className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                       balance >= 0
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-700"
@@ -230,7 +241,7 @@ export default function DashboardPage() {
                   <span className="text-sm font-medium text-gray-500">
                     A receber
                   </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
                     {pendingReceivablesCount}{" "}
                     {pendingReceivablesCount === 1 ? "item" : "itens"}
                   </span>
@@ -263,7 +274,7 @@ export default function DashboardPage() {
                     Conciliação
                   </span>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
+                    className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
                       reconcileProgress === 100
                         ? "bg-green-100 text-green-700"
                         : reconcileProgress > 0
@@ -300,7 +311,7 @@ export default function DashboardPage() {
                     style={{ width: `${reconcileProgress}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1 text-right">
+                <p className="text-xs text-gray-400 mt-1 text-right font-medium">
                   {reconcileProgress}%
                 </p>
               </div>
@@ -308,43 +319,59 @@ export default function DashboardPage() {
 
             {/* Caixa de saldo das contas */}
             {accountBalances.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5 mb-6">
-                <h2 className="text-sm font-medium text-gray-500 mb-3">
-                  Saldo das contas
-                </h2>
+              <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5 mb-6 shadow-2xs">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-bold text-gray-700">
+                    Saldo das contas
+                  </h2>
+                  <Link
+                    href="/bank-accounts"
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Gerenciar contas →
+                  </Link>
+                </div>
                 <div className="space-y-3">
                   {accountBalances.map((acc) => (
-                    <div key={acc.id} className="flex items-center justify-between pb-3 border-b border-gray-50 last:border-0 last:pb-0">
+                    <div key={acc.id} className="flex items-center justify-between pb-3 border-b border-gray-100 last:border-0 last:pb-0">
                       <div>
-                        <p className="text-sm font-medium text-gray-700">{acc.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-800">{acc.name}</p>
+                          {acc.hasPending && (
+                            <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-semibold">
+                              {acc.pendingCount} pendência(s)
+                            </span>
+                          )}
+                        </div>
                         {acc.hasPending ? (
-                          <p className="text-xs text-red-500 mt-0.5">
-                            ⚠ {acc.pendingCount} transação(ões) não conciliada(s) — {acc.pendingMonths.join(", ")}
+                          <p className="text-xs text-amber-600 mt-0.5">
+                            ⚠ Transação(ões) não conciliada(s) em: {acc.pendingMonths.join(", ")}
                           </p>
                         ) : (
-                          <p className="text-xs text-green-500 mt-0.5">
+                          <p className="text-xs text-emerald-600 mt-0.5">
                             ✓ Todas as transações até este mês estão conciliadas
                           </p>
                         )}
                       </div>
                       <div className="text-right">
-                        {acc.hasPending ? (
-                          <span className="text-sm text-gray-400 italic">
-                            Saldo indisponível
-                          </span>
-                        ) : (
-                          <span className={`text-lg font-bold ${acc.currentBalance >= 0 ? "text-gray-800" : "text-red-600"}`}>
-                            {formatCurrency(acc.currentBalance)}
-                          </span>
-                        )}
+                        <span className={`text-lg font-bold ${acc.currentBalance >= 0 ? "text-gray-800" : "text-red-600"}`}>
+                          {formatCurrency(acc.currentBalance)}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
-                {!accountBalances.some((a) => a.hasPending) && accountBalances.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-500">Saldo total</span>
-                    <span className="text-lg font-bold text-gray-800">
+                {accountBalances.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-bold text-gray-800">Saldo total consolidado</span>
+                      {accountBalances.some((a) => a.hasPending) && (
+                        <span className="block text-[11px] text-amber-600">
+                          (Calculado com base no Ledger e movimentações até o mês)
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-lg font-extrabold text-gray-900">
                       {formatCurrency(accountBalances.reduce((sum, a) => sum + a.currentBalance, 0))}
                     </span>
                   </div>
@@ -377,16 +404,15 @@ export default function DashboardPage() {
             {transactionsCount > 0 && (
               <Link
                 href="/transactions"
-                className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-primary hover:bg-primary/5 transition-colors mb-6"
+                className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-primary hover:bg-primary/5 transition-colors mb-6 shadow-2xs"
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-700">
-                      Ver transações
+                      Ver transações de {selectedMonth}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {transactionsCount - reconciledCount} pendentes de
-                      conciliação
+                      {transactionsCount - reconciledCount} pendentes de conciliação
                     </p>
                   </div>
                   <span className="text-gray-400">→</span>
@@ -398,7 +424,7 @@ export default function DashboardPage() {
             {transactionsCount === 0 && (
               <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
                 <span className="text-4xl">📊</span>
-                <p className="text-gray-500 mt-3 mb-1">
+                <p className="text-gray-500 mt-3 mb-1 font-bold">
                   Nenhuma transação neste mês
                 </p>
                 <p className="text-sm text-gray-400 mb-4">
