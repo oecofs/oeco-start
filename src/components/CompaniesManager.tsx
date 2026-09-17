@@ -32,12 +32,14 @@ export default function CompaniesManager() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createCnpj, setCreateCnpj] = useState("");
+  const [createSegment, setCreateSegment] = useState<"general" | "legal">("general");
   const [savingCreate, setSavingCreate] = useState(false);
 
   // Modal de Edição de Empresa
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [editName, setEditName] = useState("");
   const [editCnpj, setEditCnpj] = useState("");
+  const [editSegment, setEditSegment] = useState<"general" | "legal">("general");
   const [savingEdit, setSavingEdit] = useState(false);
 
   const [error, setError] = useState("");
@@ -147,10 +149,18 @@ export default function CompaniesManager() {
     setSavingCreate(false);
 
     if (created) {
+      if (createSegment === "legal") {
+        await supabase
+          .from("companies")
+          .update({ segment: "legal" })
+          .eq("id", created.id);
+      }
       setSuccess(`Empresa "${created.name}" criada com sucesso com categorias padrão!`);
       setCreateName("");
       setCreateCnpj("");
+      setCreateSegment("general");
       setShowCreateModal(false);
+      refreshCompanies();
     } else {
       setError("Erro ao criar empresa. Verifique as permissões.");
     }
@@ -161,6 +171,7 @@ export default function CompaniesManager() {
     setEditingCompany(comp);
     setEditName(comp.name);
     setEditCnpj(comp.cnpj || "");
+    setEditSegment(comp.segment || "general");
     setError("");
     setSuccess("");
   }
@@ -178,25 +189,27 @@ export default function CompaniesManager() {
 
     setSavingEdit(true);
     try {
-      // 1. Tenta via RPC update_company_info
-      const { error: rpcErr } = await supabase.rpc("update_company_info", {
+      // 1. Atualiza nome e cnpj via RPC se disponível
+      await supabase.rpc("update_company_info", {
         p_company_id: editingCompany.id,
         p_name: editName.trim(),
         p_cnpj: editCnpj.trim() || null,
       });
 
-      if (rpcErr) {
-        // Fallback direto nas tabelas
-        await supabase
-          .from("companies")
-          .update({ name: editName.trim(), cnpj: editCnpj.trim() || null })
-          .eq("id", editingCompany.id);
+      // 2. Atualiza diretamente na tabela companies garantindo o segmento selecionado
+      await supabase
+        .from("companies")
+        .update({
+          name: editName.trim(),
+          cnpj: editCnpj.trim() || null,
+          segment: editSegment,
+        })
+        .eq("id", editingCompany.id);
 
-        await supabase
-          .from("settings")
-          .update({ company_name: editName.trim() })
-          .eq("company_id", editingCompany.id);
-      }
+      await supabase
+        .from("settings")
+        .update({ company_name: editName.trim() })
+        .eq("company_id", editingCompany.id);
 
       setSuccess(`Empresa "${editName.trim()}" atualizada com sucesso!`);
       setEditingCompany(null);
@@ -463,9 +476,20 @@ export default function CompaniesManager() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {comp.cnpj ? `CNPJ: ${comp.cnpj}` : "Sem CNPJ cadastrado"}
-                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-gray-400">
+                          {comp.cnpj ? `CNPJ: ${comp.cnpj}` : "Sem CNPJ cadastrado"}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            comp.segment === "legal"
+                              ? "bg-purple-100 text-purple-800 border border-purple-200"
+                              : "bg-slate-100 text-slate-700 border border-slate-200"
+                          }`}
+                        >
+                          {comp.segment === "legal" ? "⚖️ Jurídico" : "🏢 Padrão"}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -690,6 +714,23 @@ export default function CompaniesManager() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                  Segmento de Atuação (Exclusivo Master)
+                </label>
+                <select
+                  value={editSegment}
+                  onChange={(e) => setEditSegment(e.target.value as "general" | "legal")}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="general">🏢 Padrão (Comércio, Serviços, PME em Geral)</option>
+                  <option value="legal">⚖️ Jurídico (Advocacia, Escritórios, Autônomos)</option>
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  Apenas o usuário Master tem permissão para alterar o segmento do cliente.
+                </p>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -763,6 +804,20 @@ export default function CompaniesManager() {
                   placeholder="00.000.000/0000-00"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                  Segmento de Atuação (Exclusivo Master)
+                </label>
+                <select
+                  value={createSegment}
+                  onChange={(e) => setCreateSegment(e.target.value as "general" | "legal")}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="general">🏢 Padrão (Comércio, Serviços, PME em Geral)</option>
+                  <option value="legal">⚖️ Jurídico (Advocacia, Escritórios, Autônomos)</option>
+                </select>
               </div>
 
               <div className="flex gap-2 pt-2">

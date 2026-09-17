@@ -28,6 +28,7 @@ export const viewport: Viewport = {
 };
 
 import { CompanyProvider } from "@/contexts/CompanyContext";
+import InstallAppBanner from "@/components/InstallAppBanner";
 
 export default function RootLayout({
   children,
@@ -37,7 +38,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="antialiased">
-        <CompanyProvider>{children}</CompanyProvider>
+        <CompanyProvider>
+          {children}
+          <InstallAppBanner />
+        </CompanyProvider>
       </body>
     </html>
   );

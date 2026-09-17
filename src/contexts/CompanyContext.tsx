@@ -10,6 +10,7 @@ export type Company = {
   logo_url?: string | null;
   is_active: boolean;
   role?: "master" | "admin" | "operator" | "viewer";
+  segment?: "general" | "legal";
 };
 
 type CompanyContextType = {

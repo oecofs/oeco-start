@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import Navigation from "@/components/Navigation";
 import MonthSelector from "@/components/MonthSelector";
+import CustomersManager, { Customer } from "@/components/CustomersManager";
 
 type Receivable = {
   id: string;
@@ -140,6 +141,8 @@ export default function ReceivablesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [showCustomersModal, setShowCustomersModal] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [editingContractId, setEditingContractId] = useState<string | null>(null);
   const [selectedContractDetails, setSelectedContractDetails] = useState<Contract | null>(null);
 
@@ -238,6 +241,16 @@ export default function ReceivablesPage() {
         .select("*")
         .eq("company_id", selectedCompany.id)
         .order("created_at", { ascending: false });
+
+      // F. Clientes da empresa
+      const { data: customersData } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("company_id", selectedCompany.id)
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+
+      if (customersData) setCustomers(customersData);
 
       const today = new Date().toISOString().split("T")[0];
 
@@ -512,11 +525,36 @@ export default function ReceivablesPage() {
           (i) => i.status === "received" || Number(i.received_amount || 0) > 0
         );
 
+        // Resolve / auto-vincula o cliente na tabela customers
+        let targetCustomerId: string | null = null;
+        const cleanContractClient = contractForm.client_name.trim();
+        const existingCustomer = customers.find(
+          (c) => c.name.toLowerCase() === cleanContractClient.toLowerCase()
+        );
+        if (existingCustomer) {
+          targetCustomerId = existingCustomer.id;
+        } else if (selectedCompany) {
+          try {
+            const { data: newCust } = await supabase
+              .from("customers")
+              .insert({
+                company_id: selectedCompany.id,
+                name: cleanContractClient,
+              })
+              .select()
+              .maybeSingle();
+            if (newCust) targetCustomerId = newCust.id;
+          } catch (cErr) {
+            console.error("Erro ao auto-cadastrar cliente do contrato:", cErr);
+          }
+        }
+
         // 1. Atualiza dados do contrato
         const { error: cErr } = await supabase
           .from("contracts")
           .update({
-            client_name: contractForm.client_name.trim(),
+            client_name: cleanContractClient,
+            customer_id: targetCustomerId,
             title: contractForm.title.trim(),
             total_amount: totalAmount,
             start_date: contractForm.start_date || todayStr,
@@ -731,8 +769,33 @@ export default function ReceivablesPage() {
       monthRef = dueDate.substring(0, 7);
     }
 
+    // Resolve / auto-vincula o cliente na tabela customers
+    let targetCustomerId: string | null = null;
+    const cleanClientName = formData.client_name.trim();
+    const existingCustomer = customers.find(
+      (c) => c.name.toLowerCase() === cleanClientName.toLowerCase()
+    );
+    if (existingCustomer) {
+      targetCustomerId = existingCustomer.id;
+    } else if (selectedCompany) {
+      try {
+        const { data: newCust } = await supabase
+          .from("customers")
+          .insert({
+            company_id: selectedCompany.id,
+            name: cleanClientName,
+          })
+          .select()
+          .maybeSingle();
+        if (newCust) targetCustomerId = newCust.id;
+      } catch (cErr) {
+        console.error("Erro ao auto-cadastrar cliente do recebível:", cErr);
+      }
+    }
+
     const payload: any = {
-      client_name: formData.client_name.trim(),
+      client_name: cleanClientName,
+      customer_id: targetCustomerId,
       nf_number: formData.nf_number.trim() || null,
       description: formData.description.trim(),
       amount,
@@ -885,6 +948,20 @@ export default function ReceivablesPage() {
             {activeTab === "titles" && (
               <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
             )}
+
+            <button
+              onClick={() => setShowCustomersModal(true)}
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Gerenciar cadastro de clientes"
+            >
+              <span>👥</span>
+              <span className="hidden sm:inline">Clientes</span>
+              {customers.length > 0 && (
+                <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded-full font-semibold">
+                  {customers.length}
+                </span>
+              )}
+            </button>
 
             {activeTab === "titles" ? (
               <div className="flex items-center gap-2">
@@ -1925,6 +2002,7 @@ export default function ReceivablesPage() {
                     <input
                       type="text"
                       required
+                      list="customers-datalist"
                       value={contractForm.client_name}
                       onChange={(e) => setContractForm({ ...contractForm, client_name: e.target.value })}
                       placeholder="Ex: Nissi Engenharia"
@@ -2135,6 +2213,7 @@ export default function ReceivablesPage() {
                   <input
                     type="text"
                     required
+                    list="customers-datalist"
                     value={formData.client_name}
                     onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
                     placeholder="Nome do cliente"
@@ -2207,6 +2286,52 @@ export default function ReceivablesPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Datalist global de sugestão de clientes */}
+        <datalist id="customers-datalist">
+          {customers.map((c) => (
+            <option key={c.id} value={c.name}>
+              {c.document ? `${c.document} • ${c.phone || ""}` : c.phone || ""}
+            </option>
+          ))}
+        </datalist>
+
+        {/* ========================================================================= */}
+        {/* MODAL DO BANCO DE CLIENTES (CUSTOMERS MANAGER)                             */}
+        {/* ========================================================================= */}
+        {showCustomersModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100">
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <span>👥 Banco de Clientes da Empresa</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                      {customers.length} cadastrados
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Gerencie os clientes da empresa ativa, dados de contato e padrões de cobrança.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomersModal(false);
+                    fetchReceivablesData();
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto flex-1">
+                <CustomersManager onUpdated={fetchReceivablesData} />
+              </div>
             </div>
           </div>
         )}

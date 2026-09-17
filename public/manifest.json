@@ -1,13 +1,20 @@
 {
-  "name": "Oeco",
-  "short_name": "Oeco",
-  "description": "Conciliação bancária e gestão de recebíveis",
-  "start_url": "/",
+  "name": "Oeco Start",
+  "short_name": "Oeco Start",
+  "description": "Gestão financeira, conciliação bancária inteligente e contas a pagar",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#1e40af",
+  "theme_color": "#1e3a5f",
   "orientation": "portrait",
   "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",

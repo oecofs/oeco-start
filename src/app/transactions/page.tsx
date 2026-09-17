@@ -33,8 +33,28 @@ type Transaction = {
   is_reconciled: boolean;
   is_internal_transfer: boolean;
   receivable_id: string | null;
+  payable_id?: string | null;
   bank_account_id: string | null;
   month_ref: string;
+  is_refundable_cost?: boolean;
+  legal_case_id?: string | null;
+  refund_status?: string | null;
+};
+
+type PayableMin = {
+  id: string;
+  supplier_name: string;
+  description: string;
+  amount: number;
+  due_date: string;
+  status: string;
+  category_id: string | null;
+  cost_center: string | null;
+  installment_number?: number | null;
+  total_installments?: number | null;
+  is_refundable_cost?: boolean;
+  legal_case_id?: string | null;
+  refund_status?: string | null;
 };
 
 function TransactionsContent() {
@@ -74,12 +94,20 @@ function TransactionsContent() {
   const [linkingModalTrx, setLinkingModalTrx] = useState<Transaction | null>(null);
   const [linkingSearch, setLinkingSearch] = useState("");
 
+  // Contas a Pagar (Payables)
+  const [allPayables, setAllPayables] = useState<PayableMin[]>([]);
+  const [linkingPayableTrx, setLinkingPayableTrx] = useState<Transaction | null>(null);
+  const [linkingPayableSearch, setLinkingPayableSearch] = useState("");
+
   // Filtro de Status de Conciliação
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "reconciled">("all");
 
-  // Filtro por recebível específico vindo da URL (ex: rastreabilidade de Contratos)
+  // Filtro por recebível ou conta a pagar específico vindo da URL
   const [filterReceivableId, setFilterReceivableId] = useState<string | null>(() => {
     return searchParams.get("receivable_id") || null;
+  });
+  const [filterPayableId, setFilterPayableId] = useState<string | null>(() => {
+    return searchParams.get("payable_id") || null;
   });
 
   // Estados do Motor de Sugestões Inteligentes
@@ -186,6 +214,16 @@ function TransactionsContent() {
       .select("id, client_name, title")
       .eq("company_id", selectedCompany.id);
     setContractsList(cData || []);
+
+    // Busca todas as contas a pagar da empresa
+    const { data: payData } = await supabase
+      .from("payables")
+      .select("id, supplier_name, description, amount, due_date, status, category_id, cost_center, installment_number, total_installments, is_refundable_cost, legal_case_id, refund_status")
+      .eq("company_id", selectedCompany.id)
+      .eq("is_active", true)
+      .order("due_date", { ascending: true });
+    setAllPayables(payData || []);
+
     setLoading(false);
   }, [supabase, selectedMonth, selectedCompany]);
 
@@ -317,8 +355,11 @@ function TransactionsContent() {
   // Filtragem composta
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      // 0. Filtro por recebível específico vindo de contrato
+      // 0. Filtro por recebível ou conta a pagar específica vinda de link externo
       if (filterReceivableId && t.receivable_id !== filterReceivableId) {
+        return false;
+      }
+      if (filterPayableId && t.payable_id !== filterPayableId) {
         return false;
       }
 
@@ -647,6 +688,123 @@ function TransactionsContent() {
     );
   }
 
+  async function handleLinkPayable(transactionId: string, payableId: string) {
+    const trx = transactions.find((t) => t.id === transactionId);
+    if (!trx) return;
+
+    const pay = allPayables.find((p) => p.id === payableId);
+    if (!pay) return;
+
+    const trxVal = Math.abs(Number(trx.amount));
+    const newStatus = trxVal >= Number(pay.amount) ? "paid" : "partial";
+
+    // 1. Atualiza a conta a pagar
+    const { error: payErr } = await supabase
+      .from("payables")
+      .update({
+        paid_amount: trxVal,
+        status: newStatus,
+        paid_at: trx.date,
+      })
+      .eq("id", payableId);
+
+    if (payErr) console.error("Erro ao atualizar conta a pagar:", payErr);
+
+    // 2. Atualiza a transação bancária
+    const updateData: any = {
+      payable_id: payableId,
+      is_reconciled: true,
+    };
+    if (pay.category_id) {
+      updateData.category_id = pay.category_id;
+    }
+    if (pay.cost_center) {
+      updateData.cost_center = pay.cost_center;
+    }
+
+    if (pay.is_refundable_cost) {
+      updateData.is_refundable_cost = true;
+      updateData.legal_case_id = pay.legal_case_id || null;
+      updateData.refund_status = pay.refund_status || "pending";
+    }
+
+    const { error: trxErr } = await supabase
+      .from("transactions")
+      .update(updateData)
+      .eq("id", transactionId);
+
+    if (trxErr) console.error("Erro ao atualizar transação com payable_id:", trxErr);
+
+    setTransactions((prev) =>
+      prev.map((t) => (t.id === transactionId ? { ...t, ...updateData } : t))
+    );
+
+    setAllPayables((prev) =>
+      prev.map((p) =>
+        p.id === payableId
+          ? {
+              ...p,
+              paid_amount: trxVal,
+              status: newStatus,
+            }
+          : p
+      )
+    );
+  }
+
+  async function handleUnlinkPayable(transactionId: string) {
+    const trx = transactions.find((t) => t.id === transactionId);
+    if (!trx || !trx.payable_id) return;
+
+    const pay = allPayables.find((p) => p.id === trx.payable_id);
+    if (pay) {
+      await supabase
+        .from("payables")
+        .update({
+          paid_amount: 0,
+          status: "open",
+          paid_at: null,
+        })
+        .eq("id", pay.id);
+
+      setAllPayables((prev) =>
+        prev.map((p) =>
+          p.id === pay.id
+            ? {
+                ...p,
+                paid_amount: 0,
+                status: "open",
+              }
+            : p
+        )
+      );
+    }
+
+    await supabase
+      .from("transactions")
+      .update({
+        payable_id: null,
+        is_refundable_cost: false,
+        legal_case_id: null,
+        refund_status: null,
+      })
+      .eq("id", transactionId);
+
+    setTransactions((prev) =>
+      prev.map((t) =>
+        t.id === transactionId
+          ? {
+              ...t,
+              payable_id: null,
+              is_refundable_cost: false,
+              legal_case_id: null,
+              refund_status: null,
+            }
+          : t
+      )
+    );
+  }
+
   async function handleSaveDescription(transactionId: string) {
     if (!editDescription.trim()) return;
     setTransactions((prev) =>
@@ -723,6 +881,19 @@ function TransactionsContent() {
       return title.toLowerCase().includes(term) || nf.toLowerCase().includes(term);
     });
   }, [openReceivables, contractsList, linkingSearch]);
+
+  const openPayables = useMemo(() => {
+    return allPayables.filter((p) => p.status !== "paid");
+  }, [allPayables]);
+
+  const filteredOpenPayables = useMemo(() => {
+    if (!linkingPayableSearch.trim()) return openPayables;
+    const term = linkingPayableSearch.toLowerCase();
+    return openPayables.filter((p) => {
+      const text = `${p.supplier_name} ${p.description}`.toLowerCase();
+      return text.includes(term);
+    });
+  }, [openPayables, linkingPayableSearch]);
 
   function toggleAccount(accountId: string) {
     setSelectedAccountIds((prev) =>
@@ -1217,6 +1388,66 @@ function TransactionsContent() {
 
                                 return null;
                               })()}
+
+                              {/* Vínculo com Contas a Pagar (Saídas / Despesas) */}
+                              {(() => {
+                                const linkedPay = trx.payable_id
+                                  ? allPayables.find((p) => p.id === trx.payable_id)
+                                  : null;
+
+                                if (trx.payable_id && linkedPay) {
+                                  const installmentLabel =
+                                    linkedPay.installment_number && linkedPay.total_installments
+                                      ? ` (${linkedPay.installment_number}/${linkedPay.total_installments})`
+                                      : "";
+                                  return (
+                                    <div className="inline-flex items-center gap-1 flex-wrap">
+                                      <button
+                                        onClick={() => handleUnlinkPayable(trx.id)}
+                                        className="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 hover:bg-rose-200 flex items-center gap-1 whitespace-nowrap font-bold shadow-2xs"
+                                        title="Clique para desvincular desta conta a pagar"
+                                      >
+                                        <span>🔗 {linkedPay.supplier_name}{installmentLabel}</span>
+                                        <span className="text-red-500 font-bold ml-0.5">✕</span>
+                                      </button>
+                                      {linkedPay.is_refundable_cost && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold whitespace-nowrap border border-amber-200/80" title="Custa Processual Reembolsável">
+                                          ⚖️ Custa Judicial
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                if (trx.amount < 0 && !trx.is_internal_transfer) {
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      {trx.payable_id && !linkedPay && (
+                                        <button
+                                          onClick={() => handleUnlinkPayable(trx.id)}
+                                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 flex items-center gap-1 font-semibold"
+                                          title="Limpar vínculo antigo inexistente"
+                                        >
+                                          ⚠️ Limpar Vínculo ✕
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => {
+                                          setLinkingPayableTrx(trx);
+                                          setLinkingPayableSearch("");
+                                        }}
+                                        className="text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50 px-2 py-1 rounded-lg font-bold flex items-center gap-1 transition-colors border border-rose-200 shadow-2xs"
+                                        title="Vincular a uma Conta a Pagar"
+                                      >
+                                        <span>🔗</span>
+                                        <span className="text-[11px]">Vincular a Pagar</span>
+                                      </button>
+                                    </div>
+                                  );
+                                }
+
+                                return null;
+                              })()}
                             </div>
                           )}
                         </td>
@@ -1692,6 +1923,122 @@ function TransactionsContent() {
                 <button
                   type="button"
                   onClick={() => setLinkingModalTrx(null)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* MODAL DE VINCULAÇÃO DE PAGAMENTO À CONTA A PAGAR                          */}
+        {/* ========================================================================= */}
+        {linkingPayableTrx && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+              {/* Header do Modal */}
+              <div className="p-5 border-b border-gray-100 bg-slate-50 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                    <span>💳 Vincular à Conta a Pagar</span>
+                  </h3>
+                  <div className="mt-2 bg-white border border-gray-200 rounded-xl p-3 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500 font-medium">Saída do Extrato:</span>
+                      <span className="font-extrabold text-rose-600 text-sm">
+                        {formatCurrency(Math.abs(linkingPayableTrx.amount))}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-gray-600">
+                      <span className="truncate max-w-[280px] font-semibold">{linkingPayableTrx.description}</span>
+                      <span>{formatDate(linkingPayableTrx.date)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setLinkingPayableTrx(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Busca e Lista de Contas a Pagar em Aberto */}
+              <div className="p-4 space-y-3 flex-1 overflow-hidden flex flex-col">
+                <input
+                  type="text"
+                  value={linkingPayableSearch}
+                  onChange={(e) => setLinkingPayableSearch(e.target.value)}
+                  placeholder="🔍 Buscar por fornecedor ou descrição da conta..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  autoFocus
+                />
+
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  {filteredOpenPayables.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 text-xs">
+                      {openPayables.length === 0
+                        ? "Nenhuma conta a pagar em aberto cadastrada."
+                        : "Nenhum resultado encontrado para a busca."}
+                    </div>
+                  ) : (
+                    filteredOpenPayables.map((p) => {
+                      const installmentBadge =
+                        p.installment_number && p.total_installments
+                          ? `Parc. ${p.installment_number}/${p.total_installments}`
+                          : null;
+
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => {
+                            handleLinkPayable(linkingPayableTrx.id, p.id);
+                            setLinkingPayableTrx(null);
+                          }}
+                          className="p-3 rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50/40 cursor-pointer transition-all flex items-center justify-between gap-3 group"
+                        >
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs text-gray-900 group-hover:text-rose-700 transition-colors truncate">
+                                {p.supplier_name}
+                              </span>
+                              {installmentBadge && (
+                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded font-bold text-[10px]">
+                                  {installmentBadge}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 flex-wrap">
+                              <span>{p.description}</span>
+                              <span>• Vencimento: {formatDate(p.due_date)}</span>
+                            </div>
+                          </div>
+
+                          <div className="text-right flex-shrink-0">
+                            <span className="text-xs font-extrabold text-gray-900 block">
+                              {formatCurrency(Number(p.amount))}
+                            </span>
+                            <span className="text-[10px] text-rose-600 font-bold group-hover:underline block mt-0.5">
+                              Dar Baixa →
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Rodapé */}
+              <div className="p-3.5 bg-slate-50 border-t border-gray-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setLinkingPayableTrx(null)}
                   className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
                 >
                   Fechar

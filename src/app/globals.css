@@ -36,3 +36,34 @@ body {
   background: #cbd5e1;
   border-radius: 3px;
 }
+
+/* Regras de Impressão e Geração de PDF Limpa */
+@media print {
+  @page {
+    margin: 1.2cm;
+    size: auto;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Oculta barras de navegação, cabeçalhos, botões de fechar e elementos marcados como no-print */
+  nav,
+  aside,
+  header,
+  .no-print,
+  .print\:hidden,
+  [class*="print:hidden"],
+  [class*="no-print"] {
+    display: none !important;
+  }
+
+  /* Garante que o container do modal impresso ocupe o topo da página sem scroll */
+  .fixed {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+}
