@@ -231,7 +231,8 @@ export default function SettingsPage() {
         .eq("id", existing.id);
 
       if (error) {
-        setError("Erro ao salvar configurações.");
+        console.error("Erro ao atualizar settings:", error);
+        setError(`Erro ao salvar configurações: ${error.message || "Erro desconhecido"}`);
       } else {
         setSuccess("Configurações salvas com sucesso!");
         refreshCompanies();
@@ -249,7 +250,8 @@ export default function SettingsPage() {
       });
 
       if (error) {
-        setError("Erro ao salvar configurações.");
+        console.error("Erro ao inserir settings:", error);
+        setError(`Erro ao salvar configurações: ${error.message || "Erro desconhecido"}`);
       } else {
         setSuccess("Configurações salvas com sucesso!");
         refreshCompanies();
