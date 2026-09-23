@@ -3,9 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #1e3a5f;
-  --color-primary-dark: #162d47;
-  --color-primary-light: #2a5380;
+  /* OECO Brand — Marrom Executivo */
+  --color-primary:       #2C1810;
+  --color-primary-dark:  #1C0F09;
+  --color-primary-light: #4A2518;
 }
 
 * {

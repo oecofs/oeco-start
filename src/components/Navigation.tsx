@@ -69,21 +69,31 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
           <CompanySwitcher />
         </div>
 
-        <nav className="flex-1 py-4">
+        <nav className="flex-1 py-3">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
+                className={`relative flex items-center gap-3 px-5 py-2.5 mx-2 rounded-xl text-sm font-medium transition-all duration-150 ${
                   isActive
-                    ? "text-primary bg-primary/10 border-r-2 border-primary"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    ? "text-primary bg-[#2C1810]/8 font-semibold"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-[#2C1810]/5"
                 }`}
               >
-                <span className="text-lg">{item.icon}</span>
-                {item.label}
+                {/* Barra lateral ativa */}
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
+                )}
+                <span className={`transition-all duration-150 ${isActive ? "text-xl" : "text-lg opacity-80"}`}>
+                  {item.icon}
+                </span>
+                <span>{item.label}</span>
+                {/* Ponto indicador direito */}
+                {isActive && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary/60" />
+                )}
               </Link>
             );
           })}
@@ -103,12 +113,19 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors ${
-                isActive ? "text-primary" : "text-gray-400"
+              className={`flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-all duration-150 ${
+                isActive ? "text-primary" : "text-gray-400 hover:text-gray-600"
               }`}
             >
-              <span className="text-xl">{item.icon}</span>
-              <span className="text-xs">{item.label}</span>
+              {isActive && (
+                <span className="absolute top-1 w-8 h-0.5 rounded-full bg-primary" />
+              )}
+              <span className={`transition-all duration-150 ${isActive ? "text-2xl" : "text-xl"}`}>
+                {item.icon}
+              </span>
+              <span className={`text-[10px] font-medium ${isActive ? "font-bold" : ""}`}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
