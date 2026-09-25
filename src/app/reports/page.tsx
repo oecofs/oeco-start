@@ -579,9 +579,9 @@ export default function ReportsPage() {
     return pieChartData.reduce((sum, item) => sum + item.value, 0);
   }, [pieChartData]);
 
-  // Handlers de Exportação Dinâmica (Exclusivo Master)
+  // Handlers de Exportação Dinâmica da Tabela em Visualização
   async function handleExportPdf() {
-    if (!selectedCompany || !isMasterUser) return;
+    if (!selectedCompany) return;
     try {
       const { exportReportToPdf } = await import("@/lib/reports/exportPdf");
       exportReportToPdf({
@@ -601,7 +601,7 @@ export default function ReportsPage() {
   }
 
   async function handleExportXlsx() {
-    if (!selectedCompany || !isMasterUser) return;
+    if (!selectedCompany) return;
     try {
       const { exportReportToXlsx } = await import("@/lib/reports/exportXlsx");
       exportReportToXlsx({
@@ -701,21 +701,21 @@ export default function ReportsPage() {
             </p>
           </div>
 
-          {/* Botões de Ação Exclusivos do Usuário Master */}
-          {isMasterUser && activeTab === "reports" && (
+          {/* Botões de Exportação da Visualização Atual (PDF e Excel) */}
+          {activeTab === "reports" && (
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleExportPdf}
-                className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5"
-                title="Baixar Relatório Executivo em PDF"
+                className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                title="Baixar Relatório Executivo em PDF com a tabela atual"
               >
                 <span>📄</span> Exportar PDF
               </button>
 
               <button
                 onClick={handleExportXlsx}
-                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5"
-                title="Baixar Planilha Excel com Múltiplas Abas"
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                title="Baixar Planilha Excel com os dados da visualização atual"
               >
                 <span>📊</span> Exportar Excel
               </button>

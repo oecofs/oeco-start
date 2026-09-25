@@ -40,8 +40,8 @@ export function exportReportToPdf({
 
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // 1. Cabeçalho Executivo
-  doc.setFillColor(30, 58, 95); // Primary Navy #1e3a5f
+  // 1. Cabeçalho Executivo (Marrom Executivo OECO #2C1810)
+  doc.setFillColor(44, 24, 16); // #2C1810
   doc.rect(0, 0, pageWidth, 24, "F");
 
   doc.setTextColor(255, 255, 255);
@@ -65,8 +65,8 @@ export function exportReportToPdf({
   // 2. Bloco de KPIs (Cards de Resumo)
   let curY = 30;
 
-  doc.setFillColor(248, 250, 252); // Slate-50
-  doc.setDrawColor(226, 232, 240); // Slate-200
+  doc.setFillColor(250, 248, 245); // Warm off-white #FAF8F5
+  doc.setDrawColor(226, 218, 210); // Warm border
   doc.roundedRect(14, curY, pageWidth - 28, 20, 2, 2, "FD");
 
   doc.setTextColor(71, 85, 105);
@@ -101,18 +101,18 @@ export function exportReportToPdf({
   doc.setTextColor(71, 85, 105);
   doc.setFontSize(8);
   doc.text("MARGEM OPERACIONAL", 18 + colStep * 3, curY + 6);
-  doc.setTextColor(30, 58, 95);
+  doc.setTextColor(44, 24, 16);
   doc.setFontSize(11);
   doc.text(`${diagnostic.operatingMarginPercent.toFixed(1)}%`, 18 + colStep * 3, curY + 14);
 
   curY += 25;
 
   // 3. Síntese Executiva / Parecer Narrativo
-  doc.setFillColor(241, 245, 249);
-  doc.setDrawColor(203, 213, 225);
+  doc.setFillColor(248, 245, 240);
+  doc.setDrawColor(220, 210, 200);
   doc.roundedRect(14, curY, pageWidth - 28, 16, 2, 2, "FD");
 
-  doc.setTextColor(30, 41, 59);
+  doc.setTextColor(44, 24, 16);
   doc.setFontSize(8);
   doc.setFont("helvetica", "italic");
 
@@ -158,7 +158,7 @@ export function exportReportToPdf({
     body: body,
     theme: "striped",
     headStyles: {
-      fillColor: [30, 58, 95],
+      fillColor: [44, 24, 16], // Marrom Executivo OECO
       textColor: [255, 255, 255],
       fontSize: 8,
       fontStyle: "bold",
@@ -182,8 +182,8 @@ export function exportReportToPdf({
         } else if (data.row.index === body.length - 2) {
           data.cell.styles.textColor = [239, 68, 68];
         } else if (data.row.index === body.length - 1) {
-          data.cell.styles.fillColor = [238, 242, 255];
-          data.cell.styles.textColor = [30, 58, 95];
+          data.cell.styles.fillColor = [245, 240, 235];
+          data.cell.styles.textColor = [44, 24, 16];
         }
       }
     },
