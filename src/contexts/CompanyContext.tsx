@@ -7,6 +7,7 @@ export type Company = {
   id: string;
   name: string;
   cnpj?: string | null;
+  pix_key?: string | null;
   logo_url?: string | null;
   is_active: boolean;
   role?: "master" | "admin" | "operator" | "viewer";

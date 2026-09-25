@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import CustomerFinancialProfileDrawer from "@/components/CustomerFinancialProfileDrawer";
+import WhatsAppMessageModal from "@/components/WhatsAppMessageModal";
 
 export type Customer = {
   id: string;
@@ -48,6 +50,18 @@ export default function CustomersManager({ onUpdated }: { onUpdated?: () => void
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Perfil 360° do Cliente e WhatsApp Modal
+  const [profileDrawerCustomer, setProfileDrawerCustomer] = useState<Customer | null>(null);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [whatsAppModalData, setWhatsAppModalData] = useState<{
+    isOpen: boolean;
+    clientName: string;
+    clientPhone?: string | null;
+  }>({
+    isOpen: false,
+    clientName: "",
+  });
 
   const fetchData = useCallback(async () => {
     if (!selectedCompany) {
@@ -222,12 +236,13 @@ export default function CustomersManager({ onUpdated }: { onUpdated?: () => void
     }
   };
 
-  // Helper para abrir conversa no WhatsApp
-  const handleOpenWhatsApp = (phoneStr: string) => {
-    const cleanPhone = phoneStr.replace(/\D/g, "");
-    if (!cleanPhone) return;
-    const finalPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
-    window.open(`https://wa.me/${finalPhone}`, "_blank");
+  // Helper para abrir modal inteligente de WhatsApp
+  const handleOpenWhatsAppModal = (customer: Customer) => {
+    setWhatsAppModalData({
+      isOpen: true,
+      clientName: customer.name,
+      clientPhone: customer.phone || null,
+    });
   };
 
   return (
@@ -289,7 +304,20 @@ export default function CustomersManager({ onUpdated }: { onUpdated?: () => void
                 >
                   <div className="space-y-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-gray-900 text-sm">{customer.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileDrawerCustomer(customer);
+                          setShowProfileDrawer(true);
+                        }}
+                        className="font-bold text-gray-900 text-sm hover:text-primary hover:underline transition-colors cursor-pointer flex items-center gap-1.5 group text-left"
+                        title="Ver Perfil Financeiro 360° do Cliente"
+                      >
+                        <span>{customer.name}</span>
+                        <span className="text-[10px] text-primary/80 bg-primary/10 px-1.5 py-0.2 rounded font-semibold group-hover:bg-primary group-hover:text-white transition-all">
+                          📊 Perfil 360°
+                        </span>
+                      </button>
 
                       {customer.document && (
                         <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
@@ -300,9 +328,9 @@ export default function CustomersManager({ onUpdated }: { onUpdated?: () => void
                       {customer.phone && (
                         <button
                           type="button"
-                          onClick={() => handleOpenWhatsApp(customer.phone!)}
+                          onClick={() => handleOpenWhatsAppModal(customer)}
                           className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 transition-colors cursor-pointer"
-                          title="Abrir WhatsApp"
+                          title="Enviar Mensagem via WhatsApp"
                         >
                           <span>💬</span>
                           <span>{customer.phone}</span>
@@ -338,17 +366,26 @@ export default function CustomersManager({ onUpdated }: { onUpdated?: () => void
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {customer.phone && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenWhatsApp(customer.phone!)}
-                        className="px-2.5 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors flex items-center gap-1"
-                        title="Conversar no WhatsApp"
-                      >
-                        <span>📲</span>
-                        <span className="hidden md:inline">WhatsApp</span>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenWhatsAppModal(customer)}
+                      className="px-2.5 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Conversar no WhatsApp"
+                    >
+                      <span>📲</span>
+                      <span className="hidden md:inline">WhatsApp</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileDrawerCustomer(customer);
+                        setShowProfileDrawer(true);
+                      }}
+                      className="px-2.5 py-1.5 text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-primary hover:text-white rounded-lg transition-colors cursor-pointer"
+                      title="Ver Perfil Financeiro 360°"
+                    >
+                      📊 360°
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleOpenModal(customer)}
@@ -548,6 +585,36 @@ export default function CustomersManager({ onUpdated }: { onUpdated?: () => void
           </div>
         </div>
       )}
+
+      {/* Drawer Perfil 360° do Cliente */}
+      <CustomerFinancialProfileDrawer
+        isOpen={showProfileDrawer}
+        onClose={() => setShowProfileDrawer(false)}
+        customer={profileDrawerCustomer}
+        companyId={selectedCompany?.id || ""}
+        companyName={selectedCompany?.name || "Empresa"}
+        onTriggerWhatsApp={(rec) => {
+          if (profileDrawerCustomer) {
+            setWhatsAppModalData({
+              isOpen: true,
+              clientName: profileDrawerCustomer.name,
+              clientPhone: profileDrawerCustomer.phone || null,
+            });
+          }
+        }}
+      />
+
+      {/* Modal Inteligente de WhatsApp */}
+      <WhatsAppMessageModal
+        isOpen={whatsAppModalData.isOpen}
+        onClose={() => setWhatsAppModalData((prev) => ({ ...prev, isOpen: false }))}
+        companyId={selectedCompany?.id}
+        companyName={selectedCompany?.name || "Empresa"}
+        companyPixKey={selectedCompany?.pix_key || null}
+        companyCnpj={selectedCompany?.cnpj || null}
+        clientName={whatsAppModalData.clientName}
+        clientPhone={whatsAppModalData.clientPhone}
+      />
     </div>
   );
 }

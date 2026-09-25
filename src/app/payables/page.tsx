@@ -10,6 +10,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import Navigation from "@/components/Navigation";
 import MonthSelector from "@/components/MonthSelector";
 import SuppliersManager from "@/components/SuppliersManager";
+import SupplierFinancialProfileDrawer from "@/components/SupplierFinancialProfileDrawer";
 import { uploadFinancialDocument } from "@/lib/storage/attachments";
 
 export type Supplier = {
@@ -128,6 +129,21 @@ export default function PayablesPage() {
 
   // Modal de Visualização de Anexo
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Perfil 360° do Fornecedor
+  const [profileDrawerSupplier, setProfileDrawerSupplier] = useState<Supplier | null>(null);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+
+  const handleOpenSupplierProfile = (name: string) => {
+    const existing = suppliers.find(
+      (s) => s.name.trim().toLowerCase() === name.trim().toLowerCase()
+    ) || {
+      id: "",
+      name: name,
+    };
+    setProfileDrawerSupplier(existing);
+    setShowProfileDrawer(true);
+  };
 
   // Helper para identificar boleto bancário por quantidade de dígitos
   const isLikelyBoleto = (val: string | null | undefined): boolean => {
@@ -834,7 +850,17 @@ export default function PayablesPage() {
                         {/* Fornecedor / Descrição */}
                         <td className="py-3 px-4">
                           <div className="font-semibold text-gray-900 flex items-center gap-1.5">
-                            <span>{item.supplier_name}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenSupplierProfile(item.supplier_name)}
+                              className="text-left font-semibold text-gray-900 hover:text-primary hover:underline transition-colors cursor-pointer flex items-center gap-1 group"
+                              title="Ver Perfil Financeiro 360° do Fornecedor"
+                            >
+                              <span>{item.supplier_name}</span>
+                              <span className="text-[10px] text-gray-400 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all">
+                                📊
+                              </span>
+                            </button>
                             {item.installment_number && item.total_installments && (
                               <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
                                 {item.installment_number}/{item.total_installments}
@@ -1531,6 +1557,15 @@ export default function PayablesPage() {
           </div>
         </div>
       )}
+
+      {/* Drawer Perfil Financeiro 360° do Fornecedor */}
+      <SupplierFinancialProfileDrawer
+        isOpen={showProfileDrawer}
+        onClose={() => setShowProfileDrawer(false)}
+        supplier={profileDrawerSupplier}
+        companyId={selectedCompany?.id || ""}
+        companyName={selectedCompany?.name || "Empresa"}
+      />
     </Navigation>
   );
 }

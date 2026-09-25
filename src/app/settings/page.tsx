@@ -48,6 +48,7 @@ export default function SettingsPage() {
   const [currentUserEmail, setCurrentUserEmail] = useState("");
 
   const [companyName, setCompanyName] = useState("");
+  const [companyPixKey, setCompanyPixKey] = useState("");
   const [bankName, setBankName] = useState("");
   const [legalPatronName, setLegalPatronName] = useState("");
   const [legalOabNumber, setLegalOabNumber] = useState("");
@@ -162,6 +163,11 @@ export default function SettingsPage() {
       setLegalLawyers([]);
       setLegalPracticeAreas(["civel", "trabalhista", "previdenciario", "tributario", "familia", "penal"]);
     }
+
+    // Carregar Chave Pix padrão da empresa
+    const savedLocalPix = typeof window !== "undefined" ? localStorage.getItem(`oeco_default_pix_${selectedCompany.id}`) : null;
+    setCompanyPixKey(savedLocalPix || (selectedCompany as any).pix_key || selectedCompany.cnpj || "");
+
     setBankAccounts(accsData || []);
     setLoading(false);
   }, [supabase, selectedCompany]);
@@ -237,10 +243,28 @@ export default function SettingsPage() {
     }
 
     // 1. Atualiza na tabela companies
-    await supabase
-      .from("companies")
-      .update({ name: companyName.trim() })
-      .eq("id", selectedCompany.id);
+    try {
+      await supabase
+        .from("companies")
+        .update({ 
+          name: companyName.trim(),
+          pix_key: companyPixKey.trim() || null
+        })
+        .eq("id", selectedCompany.id);
+    } catch {
+      await supabase
+        .from("companies")
+        .update({ name: companyName.trim() })
+        .eq("id", selectedCompany.id);
+    }
+
+    if (typeof window !== "undefined") {
+      if (companyPixKey.trim()) {
+        localStorage.setItem(`oeco_default_pix_${selectedCompany.id}`, companyPixKey.trim());
+      } else {
+        localStorage.removeItem(`oeco_default_pix_${selectedCompany.id}`);
+      }
+    }
 
     // 2. Check if settings record exists for this company
     const { data: existing } = await supabase
@@ -536,6 +560,36 @@ export default function SettingsPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     placeholder="Ex: Banco do Brasil"
                   />
+                </div>
+
+                <div className="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200/60">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-amber-950">
+                      ⚡ Chave Pix Padrão da Empresa
+                    </label>
+                    <span className="text-[10px] text-amber-800 font-medium">
+                      Usada nas mensagens de WhatsApp
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={companyPixKey}
+                    onChange={(e) => setCompanyPixKey(e.target.value)}
+                    className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                    placeholder="Ex: CNPJ, E-mail, Telefone ou Chave Aleatória"
+                  />
+                  {selectedCompany?.cnpj && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className="text-[11px] text-gray-500">Sugestão:</span>
+                      <button
+                        type="button"
+                        onClick={() => setCompanyPixKey(selectedCompany.cnpj || "")}
+                        className="text-[11px] bg-white border border-amber-300 px-2 py-0.5 rounded text-amber-900 font-semibold hover:bg-amber-100 transition-colors"
+                      >
+                        Usar CNPJ da Empresa ({selectedCompany.cnpj})
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* SEÇÃO JURÍDICA COMPLETA: BANCA DE ADVOGADOS, ASSINATURA & ÁREAS DE ATUAÇÃO */}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import SupplierFinancialProfileDrawer from "@/components/SupplierFinancialProfileDrawer";
 
 export type Supplier = {
   id: string;
@@ -31,6 +32,10 @@ export default function SuppliersManager({ onUpdated }: { onUpdated?: () => void
   const [costCenters, setCostCenters] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Perfil 360° do Fornecedor
+  const [profileDrawerSupplier, setProfileDrawerSupplier] = useState<Supplier | null>(null);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
 
   // Modal de Criação / Edição
   const [showModal, setShowModal] = useState(false);
@@ -278,7 +283,22 @@ export default function SuppliersManager({ onUpdated }: { onUpdated?: () => void
                   const cat = categories.find((c) => c.id === s.default_category_id);
                   return (
                     <tr key={s.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-gray-900">{s.name}</td>
+                      <td className="py-3 px-4 font-semibold text-gray-900">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileDrawerSupplier(s);
+                            setShowProfileDrawer(true);
+                          }}
+                          className="hover:text-primary hover:underline transition-colors text-left font-semibold text-gray-900 cursor-pointer flex items-center gap-1 group"
+                          title="Ver Perfil Financeiro 360° do Fornecedor"
+                        >
+                          <span>{s.name}</span>
+                          <span className="text-[10px] text-gray-400 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all">
+                            📊
+                          </span>
+                        </button>
+                      </td>
                       <td className="py-3 px-4 text-gray-500 font-mono text-[11px]">
                         {s.cnpj || "—"}
                       </td>
@@ -309,6 +329,17 @@ export default function SuppliersManager({ onUpdated }: { onUpdated?: () => void
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileDrawerSupplier(s);
+                              setShowProfileDrawer(true);
+                            }}
+                            className="px-2 py-1 text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-primary hover:text-white rounded-lg transition-colors cursor-pointer"
+                            title="Ver Perfil Financeiro 360°"
+                          >
+                            📊 360°
+                          </button>
                           <button
                             onClick={() => handleOpenModal(s)}
                             className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
@@ -476,6 +507,15 @@ export default function SuppliersManager({ onUpdated }: { onUpdated?: () => void
           </div>
         </div>
       )}
+
+      {/* Drawer Perfil Financeiro 360° do Fornecedor */}
+      <SupplierFinancialProfileDrawer
+        isOpen={showProfileDrawer}
+        onClose={() => setShowProfileDrawer(false)}
+        supplier={profileDrawerSupplier}
+        companyId={selectedCompany?.id || ""}
+        companyName={selectedCompany?.name || "Empresa"}
+      />
     </div>
   );
 }

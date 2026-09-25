@@ -10,6 +10,8 @@ import { useCompany } from "@/contexts/CompanyContext";
 import Navigation from "@/components/Navigation";
 import MonthSelector from "@/components/MonthSelector";
 import CustomersManager, { Customer } from "@/components/CustomersManager";
+import CustomerFinancialProfileDrawer from "@/components/CustomerFinancialProfileDrawer";
+import WhatsAppMessageModal from "@/components/WhatsAppMessageModal";
 
 type Receivable = {
   id: string;
@@ -150,6 +152,19 @@ export default function ReceivablesPage() {
   const [receiveModalItem, setReceiveModalItem] = useState<Receivable | null>(null);
   const [receiveAmountInput, setReceiveAmountInput] = useState("");
   const [receiveDateInput, setReceiveDateInput] = useState("");
+
+  // Perfil 360° do Cliente e Modal WhatsApp
+  const [profileDrawerCustomer, setProfileDrawerCustomer] = useState<Customer | null>(null);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [whatsAppModalData, setWhatsAppModalData] = useState<{
+    isOpen: boolean;
+    clientName: string;
+    clientPhone?: string | null;
+    receivable?: Receivable | null;
+  }>({
+    isOpen: false,
+    clientName: "",
+  });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -482,6 +497,34 @@ export default function ReceivablesPage() {
     setShowContractModal(true);
     setError("");
     setSuccess("");
+  }
+
+  // Abertura do Drawer de Perfil 360° do Cliente
+  function handleOpenCustomerProfile(clientName: string) {
+    const existing = customers.find(
+      (c) => c.name.trim().toLowerCase() === clientName.trim().toLowerCase()
+    ) || {
+      id: "",
+      company_id: selectedCompany?.id || "",
+      name: clientName,
+      is_active: true,
+    };
+    setProfileDrawerCustomer(existing);
+    setShowProfileDrawer(true);
+  }
+
+  // Abertura do Modal de Notificação / Cobrança WhatsApp
+  function handleOpenWhatsApp(receivable?: Receivable | null, clientNameOverride?: string) {
+    const targetName = clientNameOverride || receivable?.client_name || "";
+    const customer = customers.find(
+      (c) => c.name.trim().toLowerCase() === targetName.trim().toLowerCase()
+    );
+    setWhatsAppModalData({
+      isOpen: true,
+      clientName: targetName,
+      clientPhone: customer?.phone || null,
+      receivable: receivable || null,
+    });
   }
 
   // Salvar Contrato (Criação ou Edição)
@@ -1200,7 +1243,17 @@ export default function ReceivablesPage() {
                             }`}
                           >
                             <td className="py-2.5 px-3 font-bold text-gray-900 whitespace-nowrap">
-                              {r.client_name}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCustomerProfile(r.client_name)}
+                                className="text-left font-bold text-gray-900 hover:text-primary hover:underline transition-colors cursor-pointer flex items-center gap-1 group"
+                                title="Ver Perfil Financeiro 360° do Cliente"
+                              >
+                                <span>{r.client_name}</span>
+                                <span className="text-[10px] text-gray-400 group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100">
+                                  📊
+                                </span>
+                              </button>
                             </td>
                             <td className="py-2.5 px-3 text-gray-700">
                               <div className="flex items-center gap-1.5 flex-wrap">
@@ -1308,6 +1361,17 @@ export default function ReceivablesPage() {
                             </td>
                             <td className="py-2.5 px-3 text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-1.5">
+                                {/* Botão WhatsApp Notificação / Cobrança */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenWhatsApp(r)}
+                                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-lg transition-colors flex items-center gap-1 shadow-2xs cursor-pointer"
+                                  title="Enviar Lembrete / Cobrança / Recibo pelo WhatsApp"
+                                >
+                                  <span>💬</span>
+                                  <span className="hidden xl:inline text-[11px]">Whats</span>
+                                </button>
+
                                 {/* Link para Extrato Bancário */}
                                 {(isReceived || isPartial || received > 0) && (
                                   <button
@@ -1460,9 +1524,14 @@ export default function ReceivablesPage() {
                       <div className="space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <span className="text-xs font-bold text-primary uppercase tracking-wider block truncate">
-                              {contract.client_name}
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCustomerProfile(contract.client_name)}
+                              className="text-left text-xs font-bold text-primary uppercase tracking-wider block truncate hover:underline cursor-pointer"
+                              title="Ver Perfil 360° do Cliente"
+                            >
+                              {contract.client_name} ↗
+                            </button>
                             <h3 className="font-extrabold text-gray-900 text-base leading-tight mt-0.5">
                               {contract.title}
                             </h3>
@@ -1576,9 +1645,17 @@ export default function ReceivablesPage() {
               {/* Header do Contrato */}
               <div className="p-5 border-b border-gray-100 bg-slate-50 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs font-bold text-primary uppercase tracking-wider block">
-                    {selectedContractDetails.client_name}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedContractDetails(null);
+                      handleOpenCustomerProfile(selectedContractDetails.client_name);
+                    }}
+                    className="text-left text-xs font-bold text-primary uppercase tracking-wider block hover:underline cursor-pointer"
+                    title="Ver Perfil Financeiro 360° do Cliente"
+                  >
+                    {selectedContractDetails.client_name} ↗
+                  </button>
                   <h3 className="text-lg font-extrabold text-gray-900 mt-0.5">
                     {selectedContractDetails.title}
                   </h3>
@@ -1713,6 +1790,16 @@ export default function ReceivablesPage() {
                               </div>
 
                               <div className="flex items-center gap-2 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenWhatsApp(inst, selectedContractDetails.client_name)}
+                                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
+                                  title="Enviar Lembrete / Cobrança / Recibo pelo WhatsApp"
+                                >
+                                  <span>💬</span>
+                                  <span className="hidden sm:inline">WhatsApp</span>
+                                </button>
+
                                 {inst.hasPayment && (
                                   <button
                                     type="button"
@@ -2335,6 +2422,37 @@ export default function ReceivablesPage() {
             </div>
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* DRAWER DO PERFIL FINANCEIRO 360° DO CLIENTE                               */}
+        {/* ========================================================================= */}
+        <CustomerFinancialProfileDrawer
+          isOpen={showProfileDrawer}
+          onClose={() => setShowProfileDrawer(false)}
+          customer={profileDrawerCustomer}
+          companyId={selectedCompany?.id || ""}
+          companyName={selectedCompany?.name || "Empresa"}
+          onTriggerWhatsApp={(rec) => {
+            if (profileDrawerCustomer) {
+              handleOpenWhatsApp(rec, profileDrawerCustomer.name);
+            }
+          }}
+        />
+
+        {/* ========================================================================= */}
+        {/* MODAL INTELIGENTE DE MENSAGENS / COBRANÇA WHATSAPP                         */}
+        {/* ========================================================================= */}
+        <WhatsAppMessageModal
+          isOpen={whatsAppModalData.isOpen}
+          onClose={() => setWhatsAppModalData((prev) => ({ ...prev, isOpen: false }))}
+          companyId={selectedCompany?.id}
+          companyName={selectedCompany?.name || "Empresa"}
+          companyPixKey={selectedCompany?.pix_key || null}
+          companyCnpj={selectedCompany?.cnpj || null}
+          clientName={whatsAppModalData.clientName}
+          clientPhone={whatsAppModalData.clientPhone}
+          receivable={whatsAppModalData.receivable}
+        />
       </div>
     </Navigation>
   );
