@@ -14,9 +14,10 @@ import CostCentersManager from "@/components/CostCentersManager";
 import CompaniesManager from "@/components/CompaniesManager";
 import SuppliersManager from "@/components/SuppliersManager";
 import CustomersManager from "@/components/CustomersManager";
+import TeamManager from "@/components/TeamManager";
 
 type SettingsTab = "company" | "clients" | "account";
-type CompanySubTab = "general" | "bank_accounts" | "categories" | "suppliers" | "customers";
+type CompanySubTab = "general" | "team" | "bank_accounts" | "categories" | "suppliers" | "customers";
 
 type FirmLawyer = {
   id: string;
@@ -71,6 +72,41 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">("success");
+
+  // Alteração de Senha
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  async function handleUpdatePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPasswordMsg(null);
+
+    if (newPassword.length < 6) {
+      setPasswordMsg({ type: "error", text: "A nova senha deve ter no mínimo 6 caracteres." });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: "error", text: "As senhas digitadas não coincidem." });
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      setPasswordMsg({ type: "success", text: "Sua senha foi alterada com sucesso!" });
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      setPasswordMsg({ type: "error", text: err.message || "Erro ao atualizar senha." });
+    } finally {
+      setSavingPassword(false);
+    }
+  }
 
   // Load settings and user on mount
   const loadSettings = useCallback(async () => {
@@ -368,21 +404,27 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* Sub-abas da Empresa Ativa */}
-            <div className="flex border-b border-gray-200 gap-1 overflow-x-auto scrollbar-none pb-px">
+            {/* Sub-abas da Empresa Ativa (Pills Responsivos com Wrap — 100% Visíveis) */}
+            <div className="bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/80 flex flex-wrap items-center gap-1.5 shadow-2xs">
               <button
                 type="button"
                 onClick={() => setCompanySubTab("general")}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs rounded-xl font-bold transition-all cursor-pointer ${
                   companySubTab === "general"
-                    ? "border-primary text-primary bg-primary/5 rounded-t-lg"
-                    : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+                    ? "bg-primary text-white shadow-xs scale-[1.01]"
+                    : "bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60 shadow-2xs"
                 }`}
               >
                 <span>🏢</span>
                 <span>Dados da Empresa</span>
                 {selectedCompany?.segment === "legal" && (
-                  <span className="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded-full font-semibold">
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
+                      companySubTab === "general"
+                        ? "bg-white/20 text-white"
+                        : "bg-amber-100 text-amber-900"
+                    }`}
+                  >
                     Jurídico
                   </span>
                 )}
@@ -391,16 +433,22 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setCompanySubTab("bank_accounts")}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs rounded-xl font-bold transition-all cursor-pointer ${
                   companySubTab === "bank_accounts"
-                    ? "border-primary text-primary bg-primary/5 rounded-t-lg"
-                    : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+                    ? "bg-primary text-white shadow-xs scale-[1.01]"
+                    : "bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60 shadow-2xs"
                 }`}
               >
                 <span>🏦</span>
                 <span>Contas Bancárias</span>
                 {bankAccounts.length > 0 && (
-                  <span className="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.2 rounded-full font-semibold">
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
+                      companySubTab === "bank_accounts"
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
                     {bankAccounts.length}
                   </span>
                 )}
@@ -409,10 +457,10 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setCompanySubTab("categories")}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs rounded-xl font-bold transition-all cursor-pointer ${
                   companySubTab === "categories"
-                    ? "border-primary text-primary bg-primary/5 rounded-t-lg"
-                    : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+                    ? "bg-primary text-white shadow-xs scale-[1.01]"
+                    : "bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60 shadow-2xs"
                 }`}
               >
                 <span>🏷️</span>
@@ -421,11 +469,24 @@ export default function SettingsPage() {
 
               <button
                 type="button"
+                onClick={() => setCompanySubTab("customers")}
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs rounded-xl font-bold transition-all cursor-pointer ${
+                  companySubTab === "customers"
+                    ? "bg-primary text-white shadow-xs scale-[1.01]"
+                    : "bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60 shadow-2xs"
+                }`}
+              >
+                <span>👥</span>
+                <span>Clientes da Empresa</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setCompanySubTab("suppliers")}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs rounded-xl font-bold transition-all cursor-pointer ${
                   companySubTab === "suppliers"
-                    ? "border-primary text-primary bg-primary/5 rounded-t-lg"
-                    : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+                    ? "bg-primary text-white shadow-xs scale-[1.01]"
+                    : "bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60 shadow-2xs"
                 }`}
               >
                 <span>🤝</span>
@@ -434,15 +495,15 @@ export default function SettingsPage() {
 
               <button
                 type="button"
-                onClick={() => setCompanySubTab("customers")}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-                  companySubTab === "customers"
-                    ? "border-primary text-primary bg-primary/5 rounded-t-lg"
-                    : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+                onClick={() => setCompanySubTab("team")}
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs rounded-xl font-bold transition-all cursor-pointer ${
+                  companySubTab === "team"
+                    ? "bg-primary text-white shadow-xs scale-[1.01]"
+                    : "bg-white/70 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/60 shadow-2xs"
                 }`}
               >
-                <span>👥</span>
-                <span>Clientes da Empresa</span>
+                <span>🛡️</span>
+                <span>Equipe & Acessos</span>
               </button>
             </div>
 
@@ -847,14 +908,21 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* 4. SUB-ABA: Banco de Fornecedores */}
+            {/* 4. SUB-ABA: Equipe & Acessos da Empresa */}
+            {companySubTab === "team" && (
+              <div>
+                <TeamManager />
+              </div>
+            )}
+
+            {/* 5. SUB-ABA: Banco de Fornecedores */}
             {companySubTab === "suppliers" && (
               <div>
                 <SuppliersManager />
               </div>
             )}
 
-            {/* 5. SUB-ABA: Banco de Clientes */}
+            {/* 6. SUB-ABA: Banco de Clientes */}
             {companySubTab === "customers" && (
               <div>
                 <CustomersManager />
@@ -873,6 +941,7 @@ export default function SettingsPage() {
         {/* CONTEÚDO DA ABA 3: MINHA CONTA */}
         {activeTab === "account" && (
           <div className="space-y-6">
+            {/* Dados do Usuário */}
             <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6 shadow-sm space-y-4">
               <h2 className="text-base font-bold text-gray-800">Dados do Usuário Logado</h2>
 
@@ -905,6 +974,79 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Segurança & Alteração de Senha */}
+            <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6 shadow-sm space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                  <span>🔒</span>
+                  <span>Segurança & Alteração de Senha</span>
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Atualize sua senha de acesso ao sistema com segurança.
+                </p>
+              </div>
+
+              {passwordMsg && (
+                <div
+                  className={`p-3.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    passwordMsg.type === "success"
+                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                      : "bg-red-50 text-red-800 border border-red-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>{passwordMsg.type === "success" ? "✓" : "⚠️"}</span>
+                    <span>{passwordMsg.text}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPasswordMsg(null)}
+                    className="opacity-60 hover:opacity-100 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              <form onSubmit={handleUpdatePassword} className="space-y-4 max-w-md">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    Nova Senha *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo de 6 caracteres"
+                    className="w-full px-3.5 py-2 text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-2xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    Confirme a Nova Senha *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repita a nova senha"
+                    className="w-full px-3.5 py-2 text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-2xs"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {savingPassword ? "Salvando Nova Senha..." : "Atualizar Minha Senha"}
+                </button>
+              </form>
+            </div>
+
             {/* Logout */}
             <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -916,7 +1058,7 @@ export default function SettingsPage() {
 
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-red-50 text-red-600 font-semibold text-xs rounded-lg hover:bg-red-100 transition-colors border border-red-100 self-start sm:self-auto"
+                className="px-4 py-2 bg-red-50 text-red-600 font-semibold text-xs rounded-lg hover:bg-red-100 transition-colors border border-red-100 self-start sm:self-auto cursor-pointer"
               >
                 Sair (Logout)
               </button>
