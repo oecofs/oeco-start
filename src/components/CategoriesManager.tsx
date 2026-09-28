@@ -275,41 +275,80 @@ export default function CategoriesManager() {
 
       {/* Modal form */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-[60] p-0 md:p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-md p-4 md:p-6 max-h-[95vh] overflow-y-auto pb-8" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {editingId ? "Editar categoria" : formParentId ? "Nova subcategoria" : "Nova categoria"}
-            </h3>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Ex: Fornecedores" autoFocus />
-              </div>
-              {!formParentId && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150" 
+          onClick={() => setShowForm(false)}
+        >
+          <div 
+            className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl border border-gray-150 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Fixo */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
+              <h3 className="text-base font-bold text-gray-800">
+                {editingId ? "Editar Categoria" : formParentId ? "Nova Subcategoria" : "Nova Categoria"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                  <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as "income" | "expense" })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                    <option value="expense">Saída</option>
-                    <option value="income">Entrada</option>
-                  </select>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Nome *</label>
+                  <input 
+                    type="text" 
+                    value={formData.name} 
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Ex: Fornecedores ou Consultorias" 
+                    autoFocus 
+                  />
                 </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Centro de custo (opcional)</label>
-                <input type="text" value={formData.cost_center} onChange={(e) => setFormData({ ...formData, cost_center: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Ex: Operação" />
+                {!formParentId && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Tipo</label>
+                    <select 
+                      value={formData.type} 
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value as "income" | "expense" })}
+                      className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                    >
+                      <option value="expense">Saída / Despesa</option>
+                      <option value="income">Entrada / Receita</option>
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">Centro de custo (opcional)</label>
+                  <input 
+                    type="text" 
+                    value={formData.cost_center} 
+                    onChange={(e) => setFormData({ ...formData, cost_center: e.target.value })}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Ex: Operação, Administrativo, etc." 
+                  />
+                </div>
               </div>
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors">
+
+              {/* Footer Fixo */}
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
+                <button 
+                  type="button" 
+                  onClick={() => setShowForm(false)}
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 transition-colors text-center"
+                >
                   Cancelar
                 </button>
-                <button type="submit"
-                  className="flex-1 px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors">
+                <button 
+                  type="submit"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-xs text-center"
+                >
                   Salvar
                 </button>
               </div>

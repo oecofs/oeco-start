@@ -410,9 +410,16 @@ export default function CustomersManager({ onUpdated }: { onUpdated?: () => void
 
       {/* MODAL DE CRIAÇÃO / EDIÇÃO */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-gray-100 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div 
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs overflow-hidden animate-in fade-in duration-150"
+          onClick={() => setShowModal(false)}
+        >
+          <div 
+            className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full shadow-2xl border border-gray-100 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Fixo */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-xl">👤</span>
                 <h3 className="font-bold text-gray-900 text-base">
@@ -422,161 +429,165 @@ export default function CustomersManager({ onUpdated }: { onUpdated?: () => void
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer p-1"
+                className="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer p-1.5 -mr-1 rounded-lg"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
-                  Nome do Cliente / Razão Social *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Dra. Mariana Costa ou Tech Solutions Ltda"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto overscroll-contain flex-1 text-xs">
                 <div>
                   <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
-                    CPF ou CNPJ
+                    Nome do Cliente / Razão Social *
                   </label>
                   <input
                     type="text"
-                    placeholder="000.000.000-00"
-                    value={document}
-                    onChange={(e) => setDocument(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-mono"
+                    required
+                    placeholder="Ex: Dra. Mariana Costa ou Tech Solutions Ltda"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
-                    Telefone / WhatsApp
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="(11) 99999-9999"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
-                  E-mail de Contato / Cobrança
-                </label>
-                <input
-                  type="email"
-                  placeholder="cliente@empresa.com.br"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                />
-              </div>
-
-              {/* Categoria Padrão de Receita */}
-              <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
-                <span className="block font-bold text-gray-800 text-[11px]">
-                  📈 Padrões de Faturamento (Opcional)
-                </span>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
-                      Categoria de Receita
+                    <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
+                      CPF ou CNPJ
                     </label>
-                    <select
-                      value={parentCategoryId}
-                      onChange={(e) => {
-                        setParentCategoryId(e.target.value);
-                        setSubCategoryId("");
-                      }}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white outline-none focus:border-primary text-xs"
-                    >
-                      <option value="">Selecione a categoria...</option>
-                      {parentCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      placeholder="000.000.000-00"
+                      value={document}
+                      onChange={(e) => setDocument(e.target.value)}
+                      className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-mono"
+                    />
                   </div>
 
-                  {availableSubcategories.length > 0 && (
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
+                      Telefone / WhatsApp
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="(11) 99999-9999"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
+                    E-mail de Contato / Cobrança
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="cliente@empresa.com.br"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                  />
+                </div>
+
+                {/* Categoria Padrão de Receita */}
+                <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
+                  <span className="block font-bold text-gray-800 text-[11px]">
+                    📈 Padrões de Faturamento (Opcional)
+                  </span>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
-                        Subcategoria
+                        Categoria de Receita
                       </label>
                       <select
-                        value={subCategoryId}
-                        onChange={(e) => setSubCategoryId(e.target.value)}
-                        className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white outline-none focus:border-primary text-xs"
+                        value={parentCategoryId}
+                        onChange={(e) => {
+                          setParentCategoryId(e.target.value);
+                          setSubCategoryId("");
+                        }}
+                        className="w-full px-2.5 py-2 sm:py-1.5 border border-gray-300 rounded-lg bg-white outline-none focus:border-primary text-sm sm:text-xs"
                       >
-                        <option value="">Nenhuma (Geral)</option>
-                        {availableSubcategories.map((sc) => (
-                          <option key={sc.id} value={sc.id}>
-                            {sc.name}
+                        <option value="">Selecione a categoria...</option>
+                        {parentCategories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
                           </option>
                         ))}
                       </select>
                     </div>
-                  )}
 
-                  <div className={availableSubcategories.length > 0 ? "sm:col-span-2" : ""}>
-                    <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
-                      Centro de Custo
-                    </label>
-                    <select
-                      value={costCenter}
-                      onChange={(e) => setCostCenter(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white outline-none focus:border-primary text-xs"
-                    >
-                      <option value="">Nenhum</option>
-                      {costCenters.map((cc) => (
-                        <option key={cc.id} value={cc.name}>
-                          {cc.name}
-                        </option>
-                      ))}
-                    </select>
+                    {availableSubcategories.length > 0 && (
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                          Subcategoria
+                        </label>
+                        <select
+                          value={subCategoryId}
+                          onChange={(e) => setSubCategoryId(e.target.value)}
+                          className="w-full px-2.5 py-2 sm:py-1.5 border border-gray-300 rounded-lg bg-white outline-none focus:border-primary text-sm sm:text-xs"
+                        >
+                          <option value="">Nenhuma (Geral)</option>
+                          {availableSubcategories.map((sc) => (
+                            <option key={sc.id} value={sc.id}>
+                              {sc.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className={availableSubcategories.length > 0 ? "sm:col-span-2" : ""}>
+                      <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                        Centro de Custo
+                      </label>
+                      <select
+                        value={costCenter}
+                        onChange={(e) => setCostCenter(e.target.value)}
+                        className="w-full px-2.5 py-2 sm:py-1.5 border border-gray-300 rounded-lg bg-white outline-none focus:border-primary text-sm sm:text-xs"
+                      >
+                        <option value="">Nenhum</option>
+                        {costCenters.map((cc) => (
+                          <option key={cc.id} value={cc.name}>
+                            {cc.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
+                    Observações Internas
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ex: Contrato assinado em Jan/26, faturamento todo dia 10..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full px-3 py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                  />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-gray-700 mb-1 uppercase tracking-wider text-[10px]">
-                  Observações Internas
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Ex: Contrato assinado em Jan/26, faturamento todo dia 10..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+              {/* Footer Fixo */}
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold"
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-colors font-semibold text-center"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold shadow-xs transition-colors disabled:opacity-50"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold shadow-xs transition-colors disabled:opacity-50 text-xs text-center"
                 >
                   {saving ? "Salvando..." : editingCustomer ? "Atualizar Cliente" : "Cadastrar Cliente"}
                 </button>

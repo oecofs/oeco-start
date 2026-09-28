@@ -1640,10 +1640,16 @@ export default function ReceivablesPage() {
         {/* MODAL / DRAWER DE DETALHES E EXTRATO COM COMPENSAÇÃO EM CASCATA            */}
         {/* ========================================================================= */}
         {selectedContractDetails && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
-              {/* Header do Contrato */}
-              <div className="p-5 border-b border-gray-100 bg-slate-50 flex items-start justify-between gap-3">
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setSelectedContractDetails(null)}
+          >
+            <div 
+              className="bg-white rounded-t-2xl sm:rounded-2xl max-w-3xl w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header do Contrato Fixo */}
+              <div className="p-4 sm:p-5 border-b border-gray-100 bg-slate-50 flex flex-col sm:flex-row sm:items-start justify-between gap-3 shrink-0">
                 <div className="min-w-0 flex-1">
                   <button
                     type="button"
@@ -1656,51 +1662,51 @@ export default function ReceivablesPage() {
                   >
                     {selectedContractDetails.client_name} ↗
                   </button>
-                  <h3 className="text-lg font-extrabold text-gray-900 mt-0.5">
+                  <h3 className="text-base sm:text-lg font-extrabold text-gray-900 mt-0.5 break-words">
                     {selectedContractDetails.title}
                   </h3>
-                  <div className="flex items-center gap-4 mt-2 text-xs flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-4 mt-2 text-xs flex-wrap">
                     <span className="font-bold text-gray-800">
-                      Total Contratado: {formatCurrency(selectedContractDetails.total_amount)}
+                      Total: {formatCurrency(selectedContractDetails.total_amount)}
                     </span>
                     <span className="text-emerald-700 font-bold">
                       Liquidado: {formatCurrency(selectedContractDetails.total_received || 0)} ({selectedContractDetails.progress_percent}%)
                     </span>
                     <span className="text-amber-700 font-bold">
-                      Saldo Restante: {formatCurrency(Math.max(0, selectedContractDetails.total_amount - (selectedContractDetails.total_received || 0)))}
+                      Saldo: {formatCurrency(Math.max(0, selectedContractDetails.total_amount - (selectedContractDetails.total_received || 0)))}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-end sm:self-start">
                   <button
                     type="button"
                     onClick={() => {
                       handleOpenEditContract(selectedContractDetails);
                     }}
-                    className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1"
+                    className="px-2.5 sm:px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1 cursor-pointer"
                   >
-                    <span>✏️</span> Editar
+                    <span>✏️</span> <span className="hidden sm:inline">Editar</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDeleteContract(selectedContractDetails)}
-                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-xs transition-all flex items-center gap-1"
+                    className="px-2.5 sm:px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-xs transition-all flex items-center gap-1 cursor-pointer"
                   >
-                    <span>🗑</span> Excluir
+                    <span>🗑</span> <span className="hidden sm:inline">Excluir</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelectedContractDetails(null)}
-                    className="p-1 text-gray-400 hover:text-gray-600 text-xl font-bold ml-1"
+                    className="p-1.5 text-gray-400 hover:text-gray-600 text-lg font-bold ml-1 rounded-lg cursor-pointer"
                   >
                     ✕
                   </button>
                 </div>
               </div>
 
-              {/* Lista de Parcelas com Compensação Waterfall */}
-              <div className="p-5 overflow-y-auto flex-1 space-y-3">
+              {/* Lista de Parcelas com Compensação Waterfall (Rolável) */}
+              <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">
                     Cronograma de Parcelas, Realizados & Ajustes de Saldo
@@ -1906,12 +1912,12 @@ export default function ReceivablesPage() {
                 })()}
               </div>
 
-              {/* Rodapé */}
-              <div className="p-4 bg-slate-50 border-t border-gray-100 flex justify-end">
+              {/* Rodapé Fixo */}
+              <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-gray-100 flex justify-end shrink-0">
                 <button
                   type="button"
                   onClick={() => setSelectedContractDetails(null)}
-                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors text-center"
                 >
                   Fechar
                 </button>
@@ -1924,115 +1930,126 @@ export default function ReceivablesPage() {
         {/* MODAL DE CONFIRMAÇÃO DE RECEBIMENTO COM VALOR CUSTOMIZÁVEL                */}
         {/* ========================================================================= */}
         {receiveModalItem && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">Registrar Recebimento</h3>
-                  <p className="text-xs text-gray-500">
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setReceiveModalItem(null)}
+          >
+            <div 
+              className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full shadow-2xl border border-gray-150 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Fixo */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-gray-900 truncate">Registrar Recebimento</h3>
+                  <p className="text-xs text-gray-500 truncate mt-0.5">
                     {receiveModalItem.client_name} — {receiveModalItem.description}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setReceiveModalItem(null)}
-                  className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+                  className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              <form onSubmit={handleConfirmReceive} className="space-y-4">
-                <div className="bg-slate-50 rounded-xl p-3 space-y-1 text-xs border border-slate-200">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Valor Nominal Previsto:</span>
-                    <span className="font-bold text-slate-900">{formatCurrency(receiveModalItem.amount)}</span>
-                  </div>
-                  {receiveModalItem.received_amount > 0 && (
-                    <div className="flex justify-between text-emerald-700">
-                      <span>Já Recebido Anteriormente:</span>
-                      <span className="font-bold">{formatCurrency(receiveModalItem.received_amount)}</span>
+              <form onSubmit={handleConfirmReceive} className="flex flex-col flex-1 overflow-hidden">
+                {/* Body Rolável */}
+                <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
+                  <div className="bg-slate-50 rounded-xl p-3 space-y-1 text-xs border border-slate-200">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Valor Nominal Previsto:</span>
+                      <span className="font-bold text-slate-900">{formatCurrency(receiveModalItem.amount)}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between text-amber-700 font-bold border-t border-slate-200 pt-1">
-                    <span>Saldo em Aberto:</span>
-                    <span>
-                      {formatCurrency(Math.max(0, receiveModalItem.amount - (receiveModalItem.received_amount || 0)))}
-                    </span>
+                    {receiveModalItem.received_amount > 0 && (
+                      <div className="flex justify-between text-emerald-700">
+                        <span>Já Recebido Anteriormente:</span>
+                        <span className="font-bold">{formatCurrency(receiveModalItem.received_amount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-amber-700 font-bold border-t border-slate-200 pt-1">
+                      <span>Saldo em Aberto:</span>
+                      <span>
+                        {formatCurrency(Math.max(0, receiveModalItem.amount - (receiveModalItem.received_amount || 0)))}
+                      </span>
+                    </div>
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      Valor Efetivamente Recebido (R$) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={receiveAmountInput}
+                      onChange={(e) => setReceiveAmountInput(e.target.value)}
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-base sm:text-sm font-extrabold text-gray-900 focus:ring-2 focus:ring-primary focus:outline-none"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      Data do Recebimento *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={receiveDateInput}
+                      onChange={(e) => setReceiveDateInput(e.target.value)}
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
+                    />
+                  </div>
+
+                  {/* Feedback em tempo real sobre a diferença */}
+                  {(() => {
+                    const val = parseFloat(receiveAmountInput) || 0;
+                    const currentRec = Number(receiveModalItem.received_amount || 0);
+                    const totalAfter = currentRec + val;
+                    const remaining = Number(receiveModalItem.amount) - totalAfter;
+
+                    if (val <= 0) return null;
+
+                    if (remaining > 0) {
+                      return (
+                        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                          ⚠️ <strong>Pagamento Parcial</strong>: Faltarão{" "}
+                          <strong>{formatCurrency(remaining)}</strong>. O saldo continuará em aberto e será compensado na próxima parcela se fizer parte de um contrato.
+                        </div>
+                      );
+                    } else if (remaining < 0) {
+                      return (
+                        <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800">
+                          ✨ <strong>Pagamento Excedente</strong>: Crédito de{" "}
+                          <strong>{formatCurrency(Math.abs(remaining))}</strong> será abatido na próxima parcela do contrato.
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                          ✓ <strong>Liquidação Integral</strong>: O título será marcado como totalmente quitado.
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Valor Efetivamente Recebido (R$) *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={receiveAmountInput}
-                    onChange={(e) => setReceiveAmountInput(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm font-extrabold text-gray-900 focus:ring-2 focus:ring-primary focus:outline-none"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Data do Recebimento *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={receiveDateInput}
-                    onChange={(e) => setReceiveDateInput(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                  />
-                </div>
-
-                {/* Feedback em tempo real sobre a diferença */}
-                {(() => {
-                  const val = parseFloat(receiveAmountInput) || 0;
-                  const currentRec = Number(receiveModalItem.received_amount || 0);
-                  const totalAfter = currentRec + val;
-                  const remaining = Number(receiveModalItem.amount) - totalAfter;
-
-                  if (val <= 0) return null;
-
-                  if (remaining > 0) {
-                    return (
-                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                        ⚠️ <strong>Pagamento Parcial</strong>: Faltarão{" "}
-                        <strong>{formatCurrency(remaining)}</strong>. O saldo continuará em aberto e será compensado na próxima parcela se fizer parte de um contrato.
-                      </div>
-                    );
-                  } else if (remaining < 0) {
-                    return (
-                      <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800">
-                        ✨ <strong>Pagamento Excedente</strong>: Crédito de{" "}
-                        <strong>{formatCurrency(Math.abs(remaining))}</strong> será abatido na próxima parcela do contrato.
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
-                        ✓ <strong>Liquidação Integral</strong>: O título será marcado como totalmente quitado.
-                      </div>
-                    );
-                  }
-                })()}
-
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                {/* Footer Fixo */}
+                <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                   <button
                     type="button"
                     onClick={() => setReceiveModalItem(null)}
-                    className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900"
+                    className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 sm:border-transparent rounded-xl text-center"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs text-center"
                   >
                     Confirmar Recebimento
                   </button>
@@ -2046,17 +2063,27 @@ export default function ReceivablesPage() {
         {/* MODAL DE CADASTRO / EDIÇÃO DE CONTRATO (ENTRADA + PARCELAMENTO)            */}
         {/* ========================================================================= */}
         {showContractModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => {
+              setShowContractModal(false);
+              setEditingContractId(null);
+            }}
+          >
+            <div 
+              className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Fixo */}
+              <div className="p-4 sm:p-5 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 truncate">
                     <span>📁 {editingContractId ? "Editar Contrato" : "Novo Contrato"}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold shrink-0">
                       {editingContractId ? "Edição de Dados" : "Entrada + Parcelas"}
                     </span>
                   </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 mt-0.5 truncate">
                     {editingContractId
                       ? "Atualize os dados do contrato e o cronograma de faturamento."
                       : "Gera automaticamente todas as parcelas e agenda no contas a receber."}
@@ -2068,206 +2095,210 @@ export default function ReceivablesPage() {
                     setShowContractModal(false);
                     setEditingContractId(null);
                   }}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1"
+                  className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              <form onSubmit={handleSaveContract} className="overflow-y-auto flex-1 p-5 space-y-4">
-                {editingContractId && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800">
-                    💡 <strong>Dica de Edição</strong>: Caso o contrato já possua parcelas com pagamentos efetuados, os dados cadastrais serão atualizados mantendo o histórico de recebimentos preservado.
-                  </div>
-                )}
+              <form onSubmit={handleSaveContract} className="flex flex-col flex-1 overflow-hidden">
+                {/* Body Rolável */}
+                <div className="overflow-y-auto overscroll-contain flex-1 p-4 sm:p-5 space-y-4">
+                  {editingContractId && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800">
+                      💡 <strong>Dica de Edição</strong>: Caso o contrato já possua parcelas com pagamentos efetuados, os dados cadastrais serão atualizados mantendo o histórico de recebimentos preservado.
+                    </div>
+                  )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Cliente *
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Cliente *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        list="customers-datalist"
+                        value={contractForm.client_name}
+                        onChange={(e) => setContractForm({ ...contractForm, client_name: e.target.value })}
+                        placeholder="Ex: Nissi Engenharia"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Título do Contrato *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={contractForm.title}
+                        onChange={(e) => setContractForm({ ...contractForm, title: e.target.value })}
+                        placeholder="Ex: Reforma Galpão 03"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Valor Total do Contrato (R$) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        value={contractForm.total_amount}
+                        onChange={(e) => setContractForm({ ...contractForm, total_amount: e.target.value })}
+                        placeholder="50000.00"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs font-bold text-gray-900 focus:ring-2 focus:ring-primary focus:outline-none font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Data de Início do Contrato *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={contractForm.start_date}
+                        onChange={(e) => setContractForm({ ...contractForm, start_date: e.target.value })}
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bloco de Entrada */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={contractForm.has_down_payment}
+                        onChange={(e) => setContractForm({ ...contractForm, has_down_payment: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span>Possui Pagamento de Entrada?</span>
                     </label>
-                    <input
-                      type="text"
-                      required
-                      list="customers-datalist"
-                      value={contractForm.client_name}
-                      onChange={(e) => setContractForm({ ...contractForm, client_name: e.target.value })}
-                      placeholder="Ex: Nissi Engenharia"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Título do Contrato *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={contractForm.title}
-                      onChange={(e) => setContractForm({ ...contractForm, title: e.target.value })}
-                      placeholder="Ex: Reforma Galpão 03"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-                </div>
+                    {contractForm.has_down_payment && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                            Valor da Entrada (R$)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={contractForm.down_payment_amount}
+                            onChange={(e) => setContractForm({ ...contractForm, down_payment_amount: e.target.value })}
+                            placeholder="Ex: 10000.00"
+                            className="w-full px-3 py-2 sm:py-1.5 border border-gray-300 rounded-lg text-sm sm:text-xs font-bold focus:ring-2 focus:ring-primary focus:outline-none bg-white"
+                          />
+                        </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Valor Total do Contrato (R$) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={contractForm.total_amount}
-                      onChange={(e) => setContractForm({ ...contractForm, total_amount: e.target.value })}
-                      placeholder="50000.00"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Data de Início do Contrato *
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={contractForm.start_date}
-                      onChange={(e) => setContractForm({ ...contractForm, start_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Bloco de Entrada */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
-                    <input
-                      type="checkbox"
-                      checked={contractForm.has_down_payment}
-                      onChange={(e) => setContractForm({ ...contractForm, has_down_payment: e.target.checked })}
-                      className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <span>Possui Pagamento de Entrada?</span>
-                  </label>
-
-                  {contractForm.has_down_payment && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                          Valor da Entrada (R$)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={contractForm.down_payment_amount}
-                          onChange={(e) => setContractForm({ ...contractForm, down_payment_amount: e.target.value })}
-                          placeholder="Ex: 10000.00"
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-bold focus:ring-2 focus:ring-primary focus:outline-none bg-white"
-                        />
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                            Vencimento da Entrada
+                          </label>
+                          <input
+                            type="date"
+                            value={contractForm.down_payment_due_date}
+                            onChange={(e) => setContractForm({ ...contractForm, down_payment_due_date: e.target.value })}
+                            className="w-full px-3 py-2 sm:py-1.5 border border-gray-300 rounded-lg text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
+                          />
+                        </div>
                       </div>
+                    )}
+                  </div>
 
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                          Vencimento da Entrada
-                        </label>
-                        <input
-                          type="date"
-                          value={contractForm.down_payment_due_date}
-                          onChange={(e) => setContractForm({ ...contractForm, down_payment_due_date: e.target.value })}
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
-                        />
+                  {/* Bloco de Parcelamento */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Número de Parcelas Restantes
+                      </label>
+                      <select
+                        value={contractForm.installments_count}
+                        onChange={(e) => setContractForm({ ...contractForm, installments_count: e.target.value })}
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs font-bold bg-white focus:ring-2 focus:ring-primary focus:outline-none"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map((num) => (
+                          <option key={num} value={num}>
+                            {num}x parcela(s) mensais
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Data da 1ª Parcela (Opcional)
+                      </label>
+                      <input
+                        type="date"
+                        value={contractForm.installments_first_due_date}
+                        onChange={(e) => setContractForm({ ...contractForm, installments_first_due_date: e.target.value })}
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notas / Observações */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      Observações / Termos Adicionais (Opcional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={contractForm.notes}
+                      onChange={(e) => setContractForm({ ...contractForm, notes: e.target.value })}
+                      placeholder="Ex: Contrato assinado em 3 vias, garantia de 12 meses..."
+                      className="w-full px-3 py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Prévia das Parcelas Geradas */}
+                  {previewInstallments.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-gray-500 block">
+                        ⚡ Prévia do Cronograma ({previewInstallments.length} lançamentos):
+                      </span>
+                      <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
+                        {previewInstallments.map((item, idx) => (
+                          <div key={idx} className="p-2.5 px-3 flex items-center justify-between text-xs bg-slate-50/50">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-800">{item.label}</span>
+                              <span className="text-slate-400">• Venc: {formatDate(item.dueDate)}</span>
+                              <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-semibold">
+                                Mês {item.monthRef}
+                              </span>
+                            </div>
+                            <span className="font-extrabold text-primary">{formatCurrency(item.amount)}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Bloco de Parcelamento */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Número de Parcelas Restantes
-                    </label>
-                    <select
-                      value={contractForm.installments_count}
-                      onChange={(e) => setContractForm({ ...contractForm, installments_count: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold bg-white focus:ring-2 focus:ring-primary focus:outline-none"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map((num) => (
-                        <option key={num} value={num}>
-                          {num}x parcela(s) mensais
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Data da 1ª Parcela (Opcional)
-                    </label>
-                    <input
-                      type="date"
-                      value={contractForm.installments_first_due_date}
-                      onChange={(e) => setContractForm({ ...contractForm, installments_first_due_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Notas / Observações */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Observações / Termos Adicionais (Opcional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={contractForm.notes}
-                    onChange={(e) => setContractForm({ ...contractForm, notes: e.target.value })}
-                    placeholder="Ex: Contrato assinado em 3 vias, garantia de 12 meses..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                  />
-                </div>
-
-                {/* Prévia das Parcelas Geradas */}
-                {previewInstallments.length > 0 && (
-                  <div className="space-y-2 pt-2 border-t border-gray-100">
-                    <span className="text-xs font-bold uppercase tracking-wider text-gray-500 block">
-                      ⚡ Prévia do Cronograma ({previewInstallments.length} lançamentos):
-                    </span>
-                    <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100">
-                      {previewInstallments.map((item, idx) => (
-                        <div key={idx} className="p-2.5 px-3 flex items-center justify-between text-xs bg-slate-50/50">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-800">{item.label}</span>
-                            <span className="text-slate-400">• Venc: {formatDate(item.dueDate)}</span>
-                            <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-semibold">
-                              Mês {item.monthRef}
-                            </span>
-                          </div>
-                          <span className="font-extrabold text-primary">{formatCurrency(item.amount)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-3">
+                {/* Footer Fixo */}
+                <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                   <button
                     type="button"
                     onClick={() => {
                       setShowContractModal(false);
                       setEditingContractId(null);
                     }}
-                    className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900"
+                    className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 sm:border-transparent rounded-xl text-center"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-xs text-center"
                   >
                     {editingContractId ? "Salvar Alterações" : "Salvar e Gerar Contrato"}
                   </button>
@@ -2279,97 +2310,108 @@ export default function ReceivablesPage() {
 
         {/* Modal Formulário Título Avulso */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
-              <div className="flex items-center justify-between">
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setShowForm(false)}
+          >
+            <div 
+              className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full shadow-2xl border border-gray-150 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Fixo */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
                 <h3 className="text-base font-bold text-gray-900">
                   {editingId ? "Editar Recebível" : "Novo Recebível Avulso"}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+                  className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              <form onSubmit={handleSaveReceivable} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Cliente *</label>
-                  <input
-                    type="text"
-                    required
-                    list="customers-datalist"
-                    value={formData.client_name}
-                    onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                    placeholder="Nome do cliente"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Descrição *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Ex: Mensalidade de consultoria"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleSaveReceivable} className="flex flex-col flex-1 overflow-hidden">
+                {/* Body Rolável */}
+                <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto overscroll-contain flex-1">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Valor (R$) *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={formData.amount}
-                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Número da NF</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Cliente *</label>
                     <input
                       type="text"
-                      value={formData.nf_number}
-                      onChange={(e) => setFormData({ ...formData, nf_number: e.target.value })}
-                      placeholder="Ex: 1042"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                      required
+                      list="customers-datalist"
+                      value={formData.client_name}
+                      onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
+                      placeholder="Nome do cliente"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Descrição *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Ex: Mensalidade de consultoria"
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Valor (R$) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs font-bold focus:ring-2 focus:ring-primary focus:outline-none font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Número da NF</label>
+                      <input
+                        type="text"
+                        value={formData.nf_number}
+                        onChange={(e) => setFormData({ ...formData, nf_number: e.target.value })}
+                        placeholder="Ex: 1042"
+                        className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Data de Vencimento *</label>
+                    <input
+                      type="date"
+                      required={!formData.is_recurring}
+                      value={formData.due_date}
+                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none bg-white"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Data de Vencimento *</label>
-                  <input
-                    type="date"
-                    required={!formData.is_recurring}
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                {/* Footer Fixo */}
+                <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowForm(false)}
-                    className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900"
+                    className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 border border-gray-200 sm:border-transparent rounded-xl text-center"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-xs text-center"
                   >
-                    Salvar
+                    Salvar Recebível
                   </button>
                 </div>
               </form>
@@ -2390,17 +2432,27 @@ export default function ReceivablesPage() {
         {/* MODAL DO BANCO DE CLIENTES (CUSTOMERS MANAGER)                             */}
         {/* ========================================================================= */}
         {showCustomersModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100">
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => {
+              setShowCustomersModal(false);
+              fetchReceivablesData();
+            }}
+          >
+            <div 
+              className="bg-white rounded-t-2xl sm:rounded-2xl max-w-4xl w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Fixo */}
+              <div className="p-4 sm:p-5 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2 truncate">
                     <span>👥 Banco de Clientes da Empresa</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold shrink-0">
                       {customers.length} cadastrados
                     </span>
                   </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 mt-0.5 truncate">
                     Gerencie os clientes da empresa ativa, dados de contato e padrões de cobrança.
                   </p>
                 </div>
@@ -2410,13 +2462,14 @@ export default function ReceivablesPage() {
                     setShowCustomersModal(false);
                     fetchReceivablesData();
                   }}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1 cursor-pointer"
+                  className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="p-5 overflow-y-auto flex-1">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1">
                 <CustomersManager onUpdated={fetchReceivablesData} />
               </div>
             </div>

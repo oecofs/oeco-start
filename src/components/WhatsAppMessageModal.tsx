@@ -289,15 +289,21 @@ export default function WhatsAppMessageModal({
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]">
+    <div 
+      className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full shadow-2xl border border-gray-150 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="p-4 md:p-5 border-b border-gray-100 flex items-center justify-between bg-emerald-700 text-white rounded-t-2xl">
-          <div className="flex items-center gap-2.5">
-            <span className="text-2xl">💬</span>
-            <div>
-              <h3 className="text-base font-bold">Enviar Mensagem WhatsApp</h3>
-              <p className="text-xs text-emerald-100 mt-0.5">
+        <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-emerald-700 text-white shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="text-2xl shrink-0">💬</span>
+            <div className="min-w-0">
+              <h3 className="text-base font-bold truncate">Enviar Mensagem WhatsApp</h3>
+              <p className="text-xs text-emerald-100 truncate mt-0.5">
                 {clientName}
               </p>
             </div>
@@ -305,13 +311,13 @@ export default function WhatsAppMessageModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-white/80 hover:text-white text-xl font-bold p-1 cursor-pointer"
+            className="text-white/80 hover:text-white text-xl font-bold p-1.5 -mr-1 cursor-pointer rounded-lg transition-colors"
           >
             ✕
           </button>
         </div>
 
-        <div className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1">
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
           {/* Campo de Telefone */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-700 mb-1">
@@ -571,11 +577,11 @@ export default function WhatsAppMessageModal({
         </div>
 
         {/* Footer com Botões */}
-        <div className="p-4 border-t border-gray-100 bg-slate-50 flex items-center justify-between gap-3">
+        <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-slate-50 flex flex-col-reverse sm:flex-row items-center justify-between gap-2 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 cursor-pointer"
+            className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 cursor-pointer text-center"
           >
             Cancelar
           </button>
@@ -584,7 +590,7 @@ export default function WhatsAppMessageModal({
             type="button"
             onClick={handleSendWhatsApp}
             disabled={!cleanPhone}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>📲</span>
             <span>Abrir no WhatsApp</span>

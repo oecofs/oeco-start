@@ -403,9 +403,16 @@ export default function TeamManager() {
 
       {/* Modal de Convidar / Adicionar Membro */}
       {showInviteModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setShowInviteModal(false)}
+        >
+          <div 
+            className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Fixo */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Adicionar Membro à Equipe</h3>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -415,72 +422,76 @@ export default function TeamManager() {
               <button
                 type="button"
                 onClick={() => setShowInviteModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleInviteMember} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                  E-mail do Usuário *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="exemplo@empresa.com.br"
-                  className="w-full px-3.5 py-2 text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-2xs"
-                />
-              </div>
+            <form onSubmit={handleInviteMember} className="flex flex-col flex-1 overflow-hidden">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    E-mail do Usuário *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="exemplo@empresa.com.br"
+                    className="w-full px-3.5 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-2xs"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                  Nível de Acesso (Cargo) *
-                </label>
-                <div className="space-y-2">
-                  {ROLE_DEFINITIONS.filter((r) => r.value !== "master").map((r) => (
-                    <label
-                      key={r.value}
-                      className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        inviteRole === r.value
-                          ? "border-primary bg-primary/5 shadow-2xs"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="invite_role"
-                        value={r.value}
-                        checked={inviteRole === r.value}
-                        onChange={() => setInviteRole(r.value as any)}
-                        className="mt-0.5 text-primary focus:ring-primary"
-                      />
-                      <div>
-                        <span className="text-xs font-bold text-gray-900 block">{r.label}</span>
-                        <span className="text-[11px] text-gray-500 leading-tight block mt-0.5">
-                          {r.description}
-                        </span>
-                      </div>
-                    </label>
-                  ))}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    Nível de Acesso (Cargo) *
+                  </label>
+                  <div className="space-y-2">
+                    {ROLE_DEFINITIONS.filter((r) => r.value !== "master").map((r) => (
+                      <label
+                        key={r.value}
+                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                          inviteRole === r.value
+                            ? "border-primary bg-primary/5 shadow-2xs"
+                            : "border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="invite_role"
+                          value={r.value}
+                          checked={inviteRole === r.value}
+                          onChange={() => setInviteRole(r.value as any)}
+                          className="mt-0.5 text-primary focus:ring-primary"
+                        />
+                        <div>
+                          <span className="text-xs font-bold text-gray-900 block">{r.label}</span>
+                          <span className="text-[11px] text-gray-500 leading-tight block mt-0.5">
+                            {r.description}
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+              {/* Footer Fixo */}
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowInviteModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 transition-colors border border-gray-200 sm:border-transparent rounded-xl text-center"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer text-center"
                 >
                   {submitting ? "Processando..." : "Conceder Acesso"}
                 </button>

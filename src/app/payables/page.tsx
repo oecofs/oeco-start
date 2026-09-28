@@ -1043,21 +1043,28 @@ export default function PayablesPage() {
 
       {/* MODAL DE CADASTRO / EDIÇÃO */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-gray-100 my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900">
                 {editingPayable ? "Editar Conta a Pagar" : "Nova Conta a Pagar"}
               </h3>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+                className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSavePayable} className="space-y-4 mt-4 text-sm">
+            <form onSubmit={handleSavePayable} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Corpo com Scroll */}
+              <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 space-y-4 text-sm">
               {/* Fornecedor com Auto-complete e Histórico */}
               <div>
                 <label className="block font-medium text-gray-700 mb-1 flex items-center justify-between">
@@ -1409,20 +1416,21 @@ export default function PayablesPage() {
                   </div>
                 )}
               </div>
+              </div>
 
-              {/* Botões do Modal */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              {/* Footer Fixo */}
+              <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium min-h-[44px] flex items-center justify-center text-sm sm:text-xs transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving || uploadingAttachment}
-                  className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-xl font-semibold shadow-xs disabled:opacity-50 flex items-center gap-2"
+                  className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-white px-5 py-2.5 sm:py-2 rounded-xl font-semibold shadow-xs disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-2 text-sm sm:text-xs transition-colors"
                 >
                   {saving && <span className="animate-spin text-xs">⏳</span>}
                   <span>{saving ? "Salvando..." : "Salvar Compromisso"}</span>
@@ -1435,17 +1443,31 @@ export default function PayablesPage() {
 
       {/* MODAL DE QUITAÇÃO MANUAL */}
       {manualPayPayable && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-100">
-            <h3 className="text-base font-bold text-gray-900 mb-1">Quitação Manual / Em Espécie</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Esta ação registra o pagamento sem criar transação no extrato bancário oficial.
-            </p>
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setManualPayPayable(null); }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-sm w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Quitação Manual</h3>
+                <p className="text-xs text-gray-500">Pagamento em espécie ou fora do extrato</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManualPayPayable(null)}
+                className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
 
-            <div className="space-y-3 text-sm">
+            {/* Corpo com Scroll */}
+            <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 space-y-3.5 text-sm">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Favorecido</label>
-                <p className="font-semibold text-gray-800">{manualPayPayable.supplier_name}</p>
+                <p className="font-semibold text-gray-800 bg-gray-50 p-2.5 rounded-xl border border-gray-150">{manualPayPayable.supplier_name}</p>
               </div>
 
               <div>
@@ -1454,7 +1476,7 @@ export default function PayablesPage() {
                   type="date"
                   value={manualPayDate}
                   onChange={(e) => setManualPayDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none"
+                  className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl outline-none text-sm sm:text-xs"
                 />
               </div>
 
@@ -1464,21 +1486,24 @@ export default function PayablesPage() {
                   type="text"
                   value={manualPayAmount}
                   onChange={(e) => setManualPayAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none"
+                  className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl outline-none text-sm sm:text-xs"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 mt-6">
+            {/* Footer Fixo */}
+            <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setManualPayPayable(null)}
-                className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-xl text-xs font-medium"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-gray-600 hover:bg-gray-100 rounded-xl text-sm sm:text-xs font-medium min-h-[44px] flex items-center justify-center transition-colors"
               >
                 Cancelar
               </button>
               <button
+                type="button"
                 onClick={handleSaveManualPayment}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-xl text-xs font-semibold"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 sm:py-2 rounded-xl text-sm sm:text-xs font-semibold min-h-[44px] flex items-center justify-center transition-colors"
               >
                 Confirmar Quitação
               </button>
@@ -1489,37 +1514,53 @@ export default function PayablesPage() {
 
       {/* MODAL DE PREVIEW DE COMPROVANTE */}
       {previewUrl && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 shadow-2xl relative flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h4 className="font-bold text-gray-800 text-sm">Visualizador de Comprovante</h4>
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setPreviewUrl(null); }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[92dvh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-3.5 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
+              <h4 className="font-bold text-gray-800 text-sm sm:text-base">Visualizador de Comprovante</h4>
               <button
+                type="button"
                 onClick={() => setPreviewUrl(null)}
-                className="text-gray-400 hover:text-gray-700 font-bold"
+                className="text-gray-400 hover:text-gray-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 font-bold transition-colors"
               >
                 ✕
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-2 flex items-center justify-center bg-gray-50 rounded-xl mt-2">
+
+            {/* Corpo com Scroll */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-2 sm:p-4 flex items-center justify-center bg-gray-50">
               {previewUrl.endsWith(".pdf") ? (
-                <iframe src={previewUrl} className="w-full h-[600px] rounded-lg border border-gray-200" />
+                <iframe src={previewUrl} className="w-full h-[60vh] rounded-lg border border-gray-200 bg-white" />
               ) : (
                 <img
                   src={previewUrl}
                   alt="Comprovante"
-                  className="max-h-[600px] max-w-full object-contain rounded-lg shadow-sm"
+                  className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-sm"
                 />
               )}
             </div>
-            <div className="flex justify-end mt-3">
+
+            {/* Footer Fixo */}
+            <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0 flex items-center justify-end gap-2">
               <a
                 href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg"
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-xl min-h-[44px] flex items-center justify-center"
               >
                 Abrir em Nova Aba ↗
               </a>
+              <button
+                type="button"
+                onClick={() => setPreviewUrl(null)}
+                className="text-xs bg-primary text-white hover:bg-primary-hover font-semibold px-4 py-2 rounded-xl min-h-[44px] flex items-center justify-center"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
@@ -1527,11 +1568,15 @@ export default function PayablesPage() {
 
       {/* MODAL DE FORNECEDORES */}
       {showSuppliersModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-gray-100 my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowSuppliersModal(false); loadAuxData(); } }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-4xl w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-gray-150 overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                   <span>👥 Banco de Fornecedores</span>
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -1539,21 +1584,25 @@ export default function PayablesPage() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => {
                   setShowSuppliersModal(false);
                   loadAuxData();
                 }}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold p-1.5 rounded-lg hover:bg-gray-100"
+                className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <SuppliersManager
-              onUpdated={() => {
-                loadAuxData();
-              }}
-            />
+            {/* Corpo com Scroll */}
+            <div className="p-4 sm:p-6 overflow-y-auto overscroll-contain flex-1">
+              <SuppliersManager
+                onUpdated={() => {
+                  loadAuxData();
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

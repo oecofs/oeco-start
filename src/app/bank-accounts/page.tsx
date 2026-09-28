@@ -296,106 +296,123 @@ export default function BankAccountsPage() {
 
       {showForm && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-[60] p-0 md:p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setShowForm(false)}
         >
           <div
-            className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-md p-4 md:p-6 max-h-[95vh] overflow-y-auto pb-8"
+            className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl border border-gray-150 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {editingId ? "Editar conta" : "Nova conta"}
-            </h3>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome da conta
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Ex: Bradesco Principal"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Banco
-                </label>
-                <input
-                  type="text"
-                  value={formData.bank_name}
-                  onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Ex: Bradesco"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            {/* Header Fixo */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
+              <h3 className="text-base font-bold text-gray-800">
+                {editingId ? "Editar Conta Bancária" : "Nova Conta Bancária"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Agência
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Nome da conta *
                   </label>
                   <input
                     type="text"
-                    value={formData.agency}
-                    onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Ex: 1234"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Ex: Bradesco Principal"
+                    autoFocus
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Conta corrente
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Banco
                   </label>
                   <input
                     type="text"
-                    value={formData.account_number}
-                    onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Ex: 12345-6"
+                    value={formData.bank_name}
+                    onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Ex: Bradesco, Itaú, Nubank..."
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                      Agência
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.agency}
+                      onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
+                      className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Ex: 1234"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                      Conta corrente
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.account_number}
+                      onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
+                      className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Ex: 12345-6"
+                    />
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3.5 space-y-3 border border-gray-200">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                      Saldo inicial (R$)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.initial_balance}
+                      onChange={(e) => setFormData({ ...formData, initial_balance: e.target.value })}
+                      className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white font-mono"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                      Data do saldo inicial
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.initial_balance_date}
+                      onChange={(e) => setFormData({ ...formData, initial_balance_date: e.target.value })}
+                      className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white"
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Saldo inicial (R$)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.initial_balance}
-                    onChange={(e) => setFormData({ ...formData, initial_balance: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="0,00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data do saldo inicial
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.initial_balance_date}
-                    onChange={(e) => setFormData({ ...formData, initial_balance_date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-2">
+
+              {/* Footer Fixo */}
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-100 transition-colors text-xs text-center"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-xs text-center"
                 >
-                  {editingId ? "Salvar" : "Criar"}
+                  {editingId ? "Salvar Alterações" : "Criar Conta"}
                 </button>
               </div>
             </form>

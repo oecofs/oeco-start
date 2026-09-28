@@ -2078,21 +2078,28 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
 
       {/* MODAL DE CADASTRO / EDIÇÃO DE PROCESSO */}
       {showCaseModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-gray-100 my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCaseModal(false); }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900">
                 {editingCase ? "Editar Processo" : "Novo Processo Judicial"}
               </h3>
               <button
+                type="button"
                 onClick={() => setShowCaseModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+                className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveCase} className="space-y-3.5 mt-4 text-sm">
+            <form onSubmit={handleSaveCase} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Corpo com Scroll */}
+              <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 space-y-3.5 text-sm">
               <div>
                 <label className="block font-medium text-gray-700 mb-1 text-xs">
                   Número do Processo (CNJ) *
@@ -2310,19 +2317,21 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-xs"
                 />
               </div>
+              </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              {/* Footer Fixo */}
+              <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowCaseModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-xs"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-sm sm:text-xs min-h-[44px] flex items-center justify-center transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={savingCase}
-                  className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-xl font-semibold shadow-xs disabled:opacity-50 text-xs"
+                  className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-white px-5 py-2.5 sm:py-2 rounded-xl font-semibold shadow-xs disabled:opacity-50 text-sm sm:text-xs min-h-[44px] flex items-center justify-center transition-colors"
                 >
                   {savingCase ? "Salvando..." : "Salvar Processo"}
                 </button>
@@ -2334,10 +2343,13 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
 
       {/* MODAL DE PRESTAÇÃO DE CONTAS & COBRANÇA */}
       {statementCase && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto print:static print:p-0 print:bg-white print:overflow-visible">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-gray-100 my-8 max-h-[92vh] overflow-y-auto print:max-h-none print:shadow-none print:border-none print:my-0 print:p-0 print:overflow-visible">
-            {/* Cabeçalho da Fatura */}
-            <div className="flex items-start justify-between pb-4 border-b border-gray-200">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setStatementCase(null); }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden print:static print:p-0 print:bg-white print:overflow-visible animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-3xl w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-gray-100 overflow-hidden print:max-h-none print:shadow-none print:border-none print:my-0 print:p-0 print:overflow-visible animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Cabeçalho Fixo da Fatura */}
+            <div className="p-4 sm:p-5 border-b border-gray-200 bg-white shrink-0 flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
@@ -2345,7 +2357,7 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
                   </span>
                   <span className="text-xs text-gray-400 font-mono">#{statementCase.case_number}</span>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mt-1">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mt-1">
                   Prestação de Contas — {statementCase.client_name}
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -2354,16 +2366,17 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
               </div>
 
               <button
+                type="button"
                 onClick={() => setStatementCase(null)}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold p-1 rounded-lg no-print print:hidden"
+                className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold no-print print:hidden"
                 aria-label="Fechar"
               >
                 ✕
               </button>
             </div>
 
-            {/* Listagem de Despesas do Processo */}
-            <div className="mt-4 space-y-4">
+            {/* Listagem de Despesas do Processo com Scroll */}
+            <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 space-y-4">
               {(() => {
                 const expInfo = caseExpensesMap.get(statementCase.id) || { total: 0, pending: 0, refunded: 0, list: [] };
                 const items = expInfo.list;
@@ -2580,47 +2593,48 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
                 );
               })()}
 
-              {/* Ações de Cobrança e Prestação de Contas */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100 print:hidden">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleMarkAllAsRefunded(statementCase.id)}
-                    disabled={updatingRefund}
-                    className="text-xs text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl font-bold border border-emerald-300 transition-colors"
-                  >
-                    ✓ Quitar Todas as Custas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="text-xs text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-xl font-semibold border border-gray-300 transition-colors flex items-center gap-1.5"
-                  >
-                    <span>🖨️</span>
-                    <span>Imprimir / PDF</span>
-                  </button>
-                </div>
+            </div>
 
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={includeAttachmentsInStatement}
-                      onChange={(e) => setIncludeAttachmentsInStatement(e.target.checked)}
-                      className="rounded border-gray-300 text-primary focus:ring-primary w-3.5 h-3.5"
-                    />
-                    <span>📎 Incluir guias no PDF</span>
-                  </label>
+            {/* Rodapé Fixo de Ações de Cobrança e Prestação de Contas */}
+            <div className="p-3.5 sm:p-4 border-t border-gray-200 bg-gray-50/90 shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 no-print print:hidden">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleMarkAllAsRefunded(statementCase.id)}
+                  disabled={updatingRefund}
+                  className="flex-1 sm:flex-none text-xs text-emerald-700 hover:bg-emerald-50 px-3 py-2 rounded-xl font-bold border border-emerald-300 transition-colors min-h-[44px] flex items-center justify-center"
+                >
+                  ✓ Quitar Custas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex-1 sm:flex-none text-xs text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-xl font-semibold border border-gray-300 transition-colors flex items-center justify-center gap-1.5 min-h-[44px]"
+                >
+                  <span>🖨️</span>
+                  <span>Imprimir / PDF</span>
+                </button>
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleCopyWhatsAppMessage(statementCase)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
-                  >
-                    <span>📲</span>
-                    <span>Enviar Cobrança no WhatsApp</span>
-                  </button>
-                </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <label className="flex items-center justify-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-700 py-1">
+                  <input
+                    type="checkbox"
+                    checked={includeAttachmentsInStatement}
+                    onChange={(e) => setIncludeAttachmentsInStatement(e.target.checked)}
+                    className="rounded border-gray-300 text-primary focus:ring-primary w-4 h-4"
+                  />
+                  <span>📎 Incluir guias no PDF</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => handleCopyWhatsAppMessage(statementCase)}
+                  className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 min-h-[44px]"
+                >
+                  <span>📲</span>
+                  <span>Cobrar no WhatsApp</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2629,110 +2643,122 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
 
       {/* MODAL DE NOVA CUSTA DIRETA */}
       {newCostCase && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-100 my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setNewCostCase(null); }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-gray-150 overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-gray-900">Nova Custa Processual</h3>
                 <p className="text-xs text-gray-500 mt-0.5">Proc: {newCostCase.case_number}</p>
               </div>
-              <button onClick={() => setNewCostCase(null)} className="text-gray-400 hover:text-gray-600 font-bold">
+              <button 
+                type="button"
+                onClick={() => setNewCostCase(null)} 
+                className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
+              >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveDirectCost} className="space-y-3.5 mt-4 text-xs">
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Descrição da Custa / Guia *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Guia DARE Custas Iniciais, Diligência Oficial..."
-                  value={costDescription}
-                  onChange={(e) => setCostDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSaveDirectCost} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Corpo com Scroll */}
+              <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 space-y-3.5 text-xs">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Valor (R$) *</label>
+                  <label className="block font-semibold text-gray-700 mb-1">Descrição da Custa / Guia *</label>
                   <input
                     type="text"
                     required
-                    placeholder="0,00"
-                    value={costAmount}
-                    onChange={(e) => setCostAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:border-primary"
+                    placeholder="Ex: Guia DARE Custas Iniciais, Diligência Oficial..."
+                    value={costDescription}
+                    onChange={(e) => setCostDescription(e.target.value)}
+                    className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl outline-none focus:border-primary text-sm sm:text-xs"
                   />
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-1">Valor (R$) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="0,00"
+                      value={costAmount}
+                      onChange={(e) => setCostAmount(e.target.value)}
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl outline-none focus:border-primary text-sm sm:text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-1">Vencimento *</label>
+                    <input
+                      type="date"
+                      required
+                      value={costDueDate}
+                      onChange={(e) => setCostDueDate(e.target.value)}
+                      className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl outline-none focus:border-primary text-sm sm:text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Forma de Pagamento */}
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Vencimento *</label>
+                  <label className="block font-semibold text-gray-700 mb-1">Forma de Pagamento</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCostPaymentMethod("boleto")}
+                      className={`flex-1 py-2 sm:py-1.5 rounded-xl border text-xs font-semibold min-h-[40px] flex items-center justify-center ${
+                        costPaymentMethod === "boleto" ? "bg-blue-50 border-blue-500 text-blue-700" : "border-gray-200 bg-white"
+                      }`}
+                    >
+                      Boleto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCostPaymentMethod("pix")}
+                      className={`flex-1 py-2 sm:py-1.5 rounded-xl border text-xs font-semibold min-h-[40px] flex items-center justify-center ${
+                        costPaymentMethod === "pix" ? "bg-emerald-50 border-emerald-500 text-emerald-700" : "border-gray-200 bg-white"
+                      }`}
+                    >
+                      Pix
+                    </button>
+                  </div>
                   <input
-                    type="date"
-                    required
-                    value={costDueDate}
-                    onChange={(e) => setCostDueDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:border-primary"
+                    type="text"
+                    placeholder={costPaymentMethod === "boleto" ? "Código de barras do boleto" : "Chave Pix do órgão"}
+                    value={costBarcodeOrPix}
+                    onChange={(e) => setCostBarcodeOrPix(e.target.value)}
+                    className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl outline-none focus:border-primary mt-2 font-mono text-xs"
+                  />
+                </div>
+
+                {/* Anexo da Guia */}
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                  <span className="font-semibold text-gray-700 block text-[11px]">Guia / Boleto em PDF (Opcional)</span>
+                  <input
+                    type="file"
+                    accept="application/pdf,image/*"
+                    onChange={(e) => setCostFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:bg-primary/10 file:text-primary"
                   />
                 </div>
               </div>
 
-              {/* Forma de Pagamento */}
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Forma de Pagamento</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCostPaymentMethod("boleto")}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold ${
-                      costPaymentMethod === "boleto" ? "bg-blue-50 border-blue-500 text-blue-700" : "border-gray-200"
-                    }`}
-                  >
-                    Boleto
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCostPaymentMethod("pix")}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold ${
-                      costPaymentMethod === "pix" ? "bg-emerald-50 border-emerald-500 text-emerald-700" : "border-gray-200"
-                    }`}
-                  >
-                    Pix
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  placeholder={costPaymentMethod === "boleto" ? "Código de barras do boleto" : "Chave Pix do órgão"}
-                  value={costBarcodeOrPix}
-                  onChange={(e) => setCostBarcodeOrPix(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:border-primary mt-2 font-mono text-[11px]"
-                />
-              </div>
-
-              {/* Anexo da Guia */}
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-                <span className="font-semibold text-gray-700 block text-[11px]">Guia / Boleto em PDF (Opcional)</span>
-                <input
-                  type="file"
-                  accept="application/pdf,image/*"
-                  onChange={(e) => setCostFile(e.target.files?.[0] || null)}
-                  className="w-full text-[11px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[11px] file:bg-primary/10 file:text-primary"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              {/* Footer Fixo */}
+              <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setNewCostCase(null)}
-                  className="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-sm sm:text-xs min-h-[44px] flex items-center justify-center transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={savingCost}
-                  className="bg-primary hover:bg-primary-hover text-white px-4 py-1.5 rounded-xl font-semibold shadow-xs disabled:opacity-50"
+                  className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-white px-5 py-2.5 sm:py-2 rounded-xl font-semibold shadow-xs disabled:opacity-50 text-sm sm:text-xs min-h-[44px] flex items-center justify-center transition-colors"
                 >
                   {savingCost ? "Salvando..." : "Salvar Custa no A Pagar"}
                 </button>
@@ -2744,34 +2770,53 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
 
       {/* PREVIEW DE COMPROVANTE */}
       {previewUrl && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 shadow-2xl relative flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h4 className="font-bold text-gray-800 text-sm">Visualizador de Comprovante</h4>
-              <button onClick={() => setPreviewUrl(null)} className="text-gray-400 hover:text-gray-700 font-bold">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setPreviewUrl(null); }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[92dvh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-3.5 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
+              <h4 className="font-bold text-gray-800 text-sm sm:text-base">Visualizador de Comprovante</h4>
+              <button 
+                type="button"
+                onClick={() => setPreviewUrl(null)} 
+                className="text-gray-400 hover:text-gray-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 font-bold transition-colors"
+              >
                 ✕
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-2 flex items-center justify-center bg-gray-50 rounded-xl mt-2">
+
+            {/* Corpo com Scroll */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-2 sm:p-4 flex items-center justify-center bg-gray-50">
               {previewUrl.endsWith(".pdf") ? (
-                <iframe src={previewUrl} className="w-full h-[600px] rounded-lg border border-gray-200" />
+                <iframe src={previewUrl} className="w-full h-[60vh] rounded-lg border border-gray-200 bg-white" />
               ) : (
                 <img
                   src={previewUrl}
                   alt="Comprovante"
-                  className="max-h-[600px] max-w-full object-contain rounded-lg shadow-sm"
+                  className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-sm"
                 />
               )}
             </div>
-            <div className="flex justify-end mt-3">
+
+            {/* Footer Fixo */}
+            <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0 flex items-center justify-end gap-2">
               <a
                 href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-1.5 rounded-lg"
+                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-xl min-h-[44px] flex items-center justify-center"
               >
                 Abrir em Nova Aba ↗
               </a>
+              <button
+                type="button"
+                onClick={() => setPreviewUrl(null)}
+                className="text-xs bg-primary text-white hover:bg-primary-hover font-semibold px-4 py-2 rounded-xl min-h-[44px] flex items-center justify-center"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
@@ -2779,27 +2824,34 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
 
       {/* MODAL DE LIQUIDAÇÃO DE ALVARÁ & RPV (FASE 3) */}
       {showSettlementModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-gray-100 my-8">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setShowSettlementModal(false); }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-xl w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-gray-150 overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-4 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
                   <span>🏛️</span>
-                  <span>Liquidação de Alvará Judicial & RPV</span>
+                  <span>Liquidação de Alvará & RPV</span>
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Calculadora automática de honorários, abatimento de custas e agendamento de repasse
+                  Honorários, custas e agendamento de repasse
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowSettlementModal(false)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-lg"
+                className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveSettlement} className="space-y-4 mt-4 text-xs">
+            <form onSubmit={handleSaveSettlement} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Corpo com Scroll */}
+              <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1 space-y-4 text-xs">
               {/* Seleção do Processo */}
               <div>
                 <label className="block font-semibold text-gray-700 mb-1">Processo Judicial & Cliente *</label>
@@ -3169,20 +3221,21 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none focus:border-amber-600"
                 />
               </div>
+              </div>
 
-              {/* Botões do Modal */}
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              {/* Footer Fixo */}
+              <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowSettlementModal(false)}
-                  className="px-3.5 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-sm sm:text-xs min-h-[44px] flex items-center justify-center transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={savingSettlement || settlementCalculation.gross <= 0}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded-xl font-bold shadow-xs transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 sm:py-2 rounded-xl font-bold shadow-xs transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 text-sm sm:text-xs min-h-[44px]"
                 >
                   <span>✓</span>
                   <span>{savingSettlement ? "Liquidando..." : "Confirmar & Gerar Repasse a Pagar"}</span>
@@ -3195,25 +3248,30 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
 
       {/* TERMO DE QUITAÇÃO & PRESTAÇÃO DE CONTAS DO ALVARÁ (MODAL & PRINT VIEW) */}
       {receiptSettlement && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto print:static print:p-0 print:bg-white print:overflow-visible">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200 my-8 flex flex-col max-h-[92vh] print:max-h-none print:shadow-none print:border-none print:my-0 print:p-0 print:overflow-visible">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-200 print:hidden">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setReceiptSettlement(null); }}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden print:static print:p-0 print:bg-white print:overflow-visible animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[92dvh] sm:max-h-[88vh] flex flex-col shadow-2xl border border-gray-200 overflow-hidden print:max-h-none print:shadow-none print:border-none print:my-0 print:p-0 print:overflow-visible animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
+            {/* Header Fixo */}
+            <div className="px-5 py-4 border-b border-gray-200 bg-white shrink-0 flex items-center justify-between print:hidden">
               <div>
-                <h3 className="text-base font-bold text-gray-900">Termo de Prestação de Contas & Quitação</h3>
+                <h3 className="text-base sm:text-lg font-bold text-gray-900">Termo de Quitação & Prestação</h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Documento formal para assinatura ou envio em PDF para o cliente
+                  Documento formal para assinatura ou envio em PDF
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setReceiptSettlement(null)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-lg"
+                className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
             {/* CONTEÚDO IMPRIMÍVEL DO TERMO */}
-            <div className="flex-1 overflow-y-auto py-4 px-2 space-y-5 text-gray-800 text-xs">
+            <div className="flex-1 overflow-y-auto overscroll-contain py-4 px-4 sm:px-6 space-y-5 text-gray-800 text-xs">
               <div className="text-center border-b pb-4 border-gray-200 space-y-1">
                 <p className="text-lg font-bold uppercase tracking-wider text-gray-900">
                   TERMO DE PRESTAÇÃO DE CONTAS E QUITAÇÃO DE ALVARÁ JUDICIAL
@@ -3424,13 +3482,13 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
               })()}
             </div>
 
-            {/* Ações do Termo */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-200 print:hidden">
-              <div className="flex items-center gap-3">
+            {/* Footer Fixo de Ações do Termo */}
+            <div className="p-3.5 sm:p-4 border-t border-gray-200 bg-gray-50/90 shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 no-print print:hidden">
+              <div className="flex items-center justify-between sm:justify-start gap-3">
                 <button
                   type="button"
                   onClick={() => setReceiptSettlement(null)}
-                  className="px-3.5 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-xs"
+                  className="px-4 py-2.5 sm:py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-sm sm:text-xs min-h-[44px] flex items-center justify-center transition-colors"
                 >
                   Fechar
                 </button>
@@ -3440,9 +3498,9 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
                     type="checkbox"
                     checked={includeAttachmentsInSettlement}
                     onChange={(e) => setIncludeAttachmentsInSettlement(e.target.checked)}
-                    className="rounded border-gray-300 text-primary focus:ring-primary w-3.5 h-3.5"
+                    className="rounded border-gray-300 text-primary focus:ring-primary w-4 h-4"
                   />
-                  <span>📎 Incluir guias e comprovantes no PDF</span>
+                  <span>📎 Guias no PDF</span>
                 </label>
               </div>
 
@@ -3450,18 +3508,18 @@ Ficamos à disposição para quaisquer esclarecimentos.`;
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="text-xs text-gray-700 hover:bg-gray-100 px-3 py-2 rounded-xl font-semibold border border-gray-300 transition-colors flex items-center gap-1.5"
+                  className="flex-1 sm:flex-none text-xs text-gray-700 hover:bg-gray-100 px-3.5 py-2.5 sm:py-2 rounded-xl font-semibold border border-gray-300 transition-colors flex items-center justify-center gap-1.5 min-h-[44px]"
                 >
                   <span>🖨️</span>
-                  <span>Imprimir / Salvar PDF</span>
+                  <span>Imprimir / PDF</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleCopySettlementWhatsApp(receiptSettlement)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+                  className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 sm:py-2 rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 min-h-[44px]"
                 >
                   <span>📲</span>
-                  <span>Enviar no WhatsApp</span>
+                  <span>WhatsApp</span>
                 </button>
               </div>
             </div>

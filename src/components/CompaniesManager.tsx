@@ -668,82 +668,88 @@ export default function CompaniesManager() {
       {/* Modal: Edição de Empresa */}
       {editingCompany && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[70] p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setEditingCompany(null)}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4"
+            className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl border border-gray-100 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            {/* Header Fixo */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
               <h3 className="text-base font-bold text-gray-900">Editar Empresa</h3>
               <button
+                type="button"
                 onClick={() => setEditingCompany(null)}
-                className="text-gray-400 hover:text-gray-600 text-lg"
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                  Nome da Empresa / Cliente *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Ex: Nissi Engenharia"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  autoFocus
-                />
+            <form onSubmit={handleSaveEdit} className="flex flex-col flex-1 overflow-hidden">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Nome da Empresa / Cliente *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Ex: Nissi Engenharia"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    CNPJ (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={editCnpj}
+                    onChange={(e) => setEditCnpj(e.target.value)}
+                    placeholder="00.000.000/0000-00"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Segmento de Atuação (Exclusivo Master)
+                  </label>
+                  <select
+                    value={editSegment}
+                    onChange={(e) => setEditSegment(e.target.value as "general" | "legal")}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="general">🏢 Padrão (Comércio, Serviços, PME em Geral)</option>
+                    <option value="legal">⚖️ Jurídico (Advocacia, Escritórios, Autônomos)</option>
+                  </select>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Apenas o usuário Master tem permissão para alterar o segmento do cliente.
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                  CNPJ (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={editCnpj}
-                  onChange={(e) => setEditCnpj(e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                  Segmento de Atuação (Exclusivo Master)
-                </label>
-                <select
-                  value={editSegment}
-                  onChange={(e) => setEditSegment(e.target.value as "general" | "legal")}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="general">🏢 Padrão (Comércio, Serviços, PME em Geral)</option>
-                  <option value="legal">⚖️ Jurídico (Advocacia, Escritórios, Autônomos)</option>
-                </select>
-                <p className="text-[10px] text-gray-400 mt-1">
-                  Apenas o usuário Master tem permissão para alterar o segmento do cliente.
-                </p>
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              {/* Footer Fixo */}
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                 <button
                   type="button"
                   disabled={savingEdit}
                   onClick={() => setEditingCompany(null)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 text-gray-700 text-xs font-semibold rounded-xl hover:bg-gray-100 transition-colors text-center"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={savingEdit}
-                  className="flex-1 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors shadow-sm disabled:opacity-50"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-sm disabled:opacity-50 text-center"
                 >
                   {savingEdit ? "Salvando..." : "Salvar Alterações"}
                 </button>
@@ -756,83 +762,89 @@ export default function CompaniesManager() {
       {/* Modal: Cadastro de Nova Empresa */}
       {showCreateModal && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4"
+          className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[70] p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setShowCreateModal(false)}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4"
+            className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl border border-gray-100 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            {/* Header Fixo */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
               <h3 className="text-base font-bold text-gray-900">Cadastrar Nova Empresa</h3>
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-lg"
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-primary/90 leading-relaxed">
-              💡 <strong>Plano de Contas Automático:</strong> Ao criar a empresa, o catálogo de categorias financeiras padrão será clonado automaticamente para ela.
-            </div>
+            <form onSubmit={handleCreate} className="flex flex-col flex-1 overflow-hidden">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs text-primary/90 leading-relaxed">
+                  💡 <strong>Plano de Contas Automático:</strong> Ao criar a empresa, o catálogo de categorias financeiras padrão será clonado automaticamente para ela.
+                </div>
 
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                  Nome da Empresa / Cliente *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  placeholder="Ex: Padaria São João Ltda"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  autoFocus
-                />
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Nome da Empresa / Cliente *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                    placeholder="Ex: Padaria São João Ltda"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    CNPJ (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={createCnpj}
+                    onChange={(e) => setCreateCnpj(e.target.value)}
+                    placeholder="00.000.000/0000-00"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Segmento de Atuação (Exclusivo Master)
+                  </label>
+                  <select
+                    value={createSegment}
+                    onChange={(e) => setCreateSegment(e.target.value as "general" | "legal")}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="general">🏢 Padrão (Comércio, Serviços, PME em Geral)</option>
+                    <option value="legal">⚖️ Jurídico (Advocacia, Escritórios, Autônomos)</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                  CNPJ (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={createCnpj}
-                  onChange={(e) => setCreateCnpj(e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                  Segmento de Atuação (Exclusivo Master)
-                </label>
-                <select
-                  value={createSegment}
-                  onChange={(e) => setCreateSegment(e.target.value as "general" | "legal")}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="general">🏢 Padrão (Comércio, Serviços, PME em Geral)</option>
-                  <option value="legal">⚖️ Jurídico (Advocacia, Escritórios, Autônomos)</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              {/* Footer Fixo */}
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                 <button
                   type="button"
                   disabled={savingCreate}
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 text-gray-700 text-xs font-semibold rounded-xl hover:bg-gray-100 transition-colors text-center"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={savingCreate}
-                  className="flex-1 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark transition-colors shadow-sm disabled:opacity-50"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl hover:bg-primary-dark transition-colors shadow-sm disabled:opacity-50 text-center"
                 >
                   {savingCreate ? "Criando..." : "Criar Empresa"}
                 </button>

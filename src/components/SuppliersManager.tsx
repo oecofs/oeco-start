@@ -367,138 +367,153 @@ export default function SuppliersManager({ onUpdated }: { onUpdated?: () => void
 
       {/* Modal de Cadastro / Edição de Fornecedor */}
       {showModal && (
-        <div className="fixed inset-0 z-[80] bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h3 className="text-base font-bold text-gray-900">
-                {editingSupplier ? "Editar Fornecedor" : "Novo Fornecedor"}
-              </h3>
+        <div 
+          className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden animate-in fade-in duration-150"
+          onClick={() => setShowModal(false)}
+        >
+          <div 
+            className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Fixo */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🤝</span>
+                <h3 className="text-base font-bold text-gray-900">
+                  {editingSupplier ? "Editar Fornecedor" : "Novo Fornecedor"}
+                </h3>
+              </div>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+                className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block font-medium text-gray-700 mb-1">
-                  Nome do Fornecedor / Favorecido *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Imobiliária Central Ltda"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-gray-700 mb-1">CNPJ / CPF (Opcional)</label>
-                <input
-                  type="text"
-                  placeholder="00.000.000/0000-00"
-                  value={cnpj}
-                  onChange={(e) => setCnpj(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                />
-              </div>
-
-              {/* Categorias em Cascata */}
-              <div className="grid grid-cols-2 gap-2.5">
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 space-y-3.5 overflow-y-auto overscroll-contain flex-1 text-xs">
                 <div>
-                  <label className="block font-medium text-gray-700 mb-1">Categoria Padrão</label>
+                  <label className="block font-medium text-gray-700 mb-1">
+                    Nome do Fornecedor / Favorecido *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Imobiliária Central Ltda"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1">CNPJ / CPF (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="00.000.000/0000-00"
+                    value={cnpj}
+                    onChange={(e) => setCnpj(e.target.value)}
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-mono"
+                  />
+                </div>
+
+                {/* Categorias em Cascata */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-1">Categoria Padrão</label>
+                    <select
+                      value={parentCategoryId}
+                      onChange={(e) => {
+                        setParentCategoryId(e.target.value);
+                        setSubCategoryId("");
+                      }}
+                      className="w-full px-3 py-2 sm:py-2 border border-gray-300 rounded-xl outline-none bg-white text-sm sm:text-xs"
+                    >
+                      <option value="">Selecione...</option>
+                      {parentCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-gray-700 mb-1">Subcategoria Padrão</label>
+                    <select
+                      value={subCategoryId}
+                      onChange={(e) => setSubCategoryId(e.target.value)}
+                      disabled={!parentCategoryId || availableSubcategories.length === 0}
+                      className="w-full px-3 py-2 sm:py-2 border border-gray-300 rounded-xl outline-none bg-white disabled:opacity-50 text-sm sm:text-xs"
+                    >
+                      <option value="">
+                        {!parentCategoryId
+                          ? "Selecione a principal"
+                          : availableSubcategories.length === 0
+                          ? "Sem subcategorias"
+                          : "Selecione..."}
+                      </option>
+                      {availableSubcategories.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Centro de Custo Padrão */}
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1">Centro de Custo Padrão</label>
                   <select
-                    value={parentCategoryId}
-                    onChange={(e) => {
-                      setParentCategoryId(e.target.value);
-                      setSubCategoryId("");
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none bg-white"
+                    value={costCenter}
+                    onChange={(e) => setCostCenter(e.target.value)}
+                    className="w-full px-3 py-2 sm:py-2 border border-gray-300 rounded-xl outline-none bg-white text-sm sm:text-xs"
                   >
-                    <option value="">Selecione...</option>
-                    {parentCategories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
+                    <option value="">Selecione... (Opcional)</option>
+                    {costCenters.map((cc) => (
+                      <option key={cc.id} value={cc.name}>
+                        {cc.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div>
-                  <label className="block font-medium text-gray-700 mb-1">Subcategoria Padrão</label>
-                  <select
-                    value={subCategoryId}
-                    onChange={(e) => setSubCategoryId(e.target.value)}
-                    disabled={!parentCategoryId || availableSubcategories.length === 0}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none bg-white disabled:opacity-50"
-                  >
-                    <option value="">
-                      {!parentCategoryId
-                        ? "Selecione a principal"
-                        : availableSubcategories.length === 0
-                        ? "Sem subcategorias"
-                        : "Selecione..."}
-                    </option>
-                    {availableSubcategories.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </option>
-                    ))}
-                  </select>
+                {/* Chave Pix Padrão Fixa */}
+                <div className="bg-amber-50/50 border border-amber-200/70 rounded-xl p-3 space-y-1">
+                  <label className="block font-semibold text-amber-900 text-xs">
+                    ⚡ Chave Pix Fixa do Fornecedor
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="CNPJ, E-mail, Telefone ou Chave Aleatória..."
+                    value={pixKey}
+                    onChange={(e) => setPixKey(e.target.value)}
+                    className="w-full px-3 py-2.5 sm:py-2 border border-amber-300 rounded-lg font-mono text-xs outline-none bg-white"
+                  />
+                  <p className="text-[10px] text-amber-700">
+                    Esta chave será carregada automaticamente sempre que você lançar uma conta deste fornecedor.
+                  </p>
                 </div>
               </div>
 
-              {/* Centro de Custo Padrão */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-1">Centro de Custo Padrão</label>
-                <select
-                  value={costCenter}
-                  onChange={(e) => setCostCenter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl outline-none bg-white"
-                >
-                  <option value="">Selecione... (Opcional)</option>
-                  {costCenters.map((cc) => (
-                    <option key={cc.id} value={cc.name}>
-                      {cc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Chave Pix Padrão Fixa */}
-              <div className="bg-amber-50/50 border border-amber-200/70 rounded-xl p-3 space-y-1">
-                <label className="block font-semibold text-amber-900">
-                  ⚡ Chave Pix Fixa do Fornecedor
-                </label>
-                <input
-                  type="text"
-                  placeholder="CNPJ, E-mail, Telefone ou Chave Aleatória..."
-                  value={pixKey}
-                  onChange={(e) => setPixKey(e.target.value)}
-                  className="w-full px-3 py-2 border border-amber-300 rounded-lg font-mono text-xs outline-none bg-white"
-                />
-                <p className="text-[10px] text-amber-700">
-                  Esta chave será carregada automaticamente sempre que você lançar uma conta deste fornecedor.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+              {/* Footer Fixo */}
+              <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-2 p-3.5 sm:p-4 border-t border-gray-100 bg-gray-50/90 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-medium"
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-center border border-gray-200 sm:border-transparent"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl font-semibold shadow-xs disabled:opacity-50"
+                  className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-xl font-semibold shadow-xs disabled:opacity-50 text-xs text-center"
                 >
                   {saving ? "Salvando..." : "Salvar Fornecedor"}
                 </button>

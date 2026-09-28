@@ -140,15 +140,21 @@ export default function SupplierFinancialProfileDrawer({
   if (!isOpen || !supplier) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col border-l border-gray-200">
+    <div 
+      className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+        <div 
+          className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col border-l border-gray-200 h-[100dvh] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header do Drawer */}
-          <div className="p-6 border-b border-gray-100 bg-[#FAF8F5]">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
+          <div className="p-4 sm:p-6 border-b border-gray-100 bg-[#FAF8F5] shrink-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xl font-bold text-gray-900">{supplier.name}</span>
+                  <span className="text-lg sm:text-xl font-bold text-gray-900 break-words">{supplier.name}</span>
                   {supplier.cnpj && (
                     <span className="font-mono text-xs bg-white text-slate-700 px-2.5 py-0.5 rounded-lg border border-slate-200 font-semibold">
                       {supplier.cnpj}
@@ -157,7 +163,7 @@ export default function SupplierFinancialProfileDrawer({
                 </div>
 
                 {supplier.default_pix_or_barcode && (
-                  <p className="text-xs text-slate-500 font-mono pt-1">
+                  <p className="text-xs text-slate-500 font-mono pt-1 break-all">
                     🔑 Pix / Código: {supplier.default_pix_or_barcode}
                   </p>
                 )}
@@ -166,7 +172,7 @@ export default function SupplierFinancialProfileDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1 text-gray-400 hover:text-gray-700 text-xl font-bold rounded-lg cursor-pointer"
+                className="p-1.5 -mr-1 text-gray-400 hover:text-gray-700 text-xl font-bold rounded-lg cursor-pointer"
               >
                 ✕
               </button>
@@ -208,11 +214,11 @@ export default function SupplierFinancialProfileDrawer({
           </div>
 
           {/* Abas do Dossiê */}
-          <div className="flex border-b border-gray-200 px-6 gap-2 bg-white">
+          <div className="flex border-b border-gray-200 px-4 sm:px-6 gap-2 bg-white overflow-x-auto shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab("payables")}
-              className={`py-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`py-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "payables"
                   ? "border-primary text-primary"
                   : "border-transparent text-gray-400 hover:text-gray-700"
@@ -228,7 +234,7 @@ export default function SupplierFinancialProfileDrawer({
             <button
               type="button"
               onClick={() => setActiveTab("transactions")}
-              className={`py-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`py-3 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "transactions"
                   ? "border-primary text-primary"
                   : "border-transparent text-gray-400 hover:text-gray-700"
@@ -243,7 +249,7 @@ export default function SupplierFinancialProfileDrawer({
           </div>
 
           {/* Conteúdo das Abas */}
-          <div className="p-6 overflow-y-auto flex-1 space-y-4">
+          <div className="p-4 sm:p-6 overflow-y-auto overscroll-contain flex-1 space-y-4">
             {loading ? (
               <div className="py-12 text-center text-xs text-gray-400">
                 Carregando ficha financeira do fornecedor...

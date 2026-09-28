@@ -1587,26 +1587,35 @@ export default function ReportsPage() {
         {/* MODAL / BOTTOM SHEET: SELEÇÃO DE ATÉ 3 SÉRIES PARA GRÁFICOS               */}
         {/* ========================================================================= */}
         {showSeriesSelectorModal && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-            <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto space-y-4 shadow-xl">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div 
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setShowSeriesSelectorModal(false)}
+          >
+            <div 
+              className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl border border-gray-150 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Fixo */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white shrink-0">
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
                     Selecionar Séries para o Gráfico
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Escolha no máximo 3 itens simultâneos para comparação limpa.
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowSeriesSelectorModal(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200"
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="space-y-2">
+              {/* Body Rolável */}
+              <div className="p-4 sm:p-5 space-y-2 overflow-y-auto overscroll-contain flex-1">
                 {tableData.rows.map((row) => {
                   const isSelected = selectedSeriesKeys.includes(row.id);
                   const disabled = !isSelected && selectedSeriesKeys.length >= 3;
@@ -1641,10 +1650,12 @@ export default function ReportsPage() {
                 })}
               </div>
 
-              <div className="pt-2">
+              {/* Footer Fixo */}
+              <div className="p-3.5 sm:p-4 border-t border-slate-100 bg-gray-50/90 shrink-0">
                 <button
+                  type="button"
                   onClick={() => setShowSeriesSelectorModal(false)}
-                  className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-colors shadow"
+                  className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-colors shadow-sm cursor-pointer text-center"
                 >
                   Confirmar Seleção ({selectedSeriesKeys.length}/3)
                 </button>

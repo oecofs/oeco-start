@@ -1611,10 +1611,13 @@ function TransactionsContent() {
         {/* MODAL DE REVISÃO E SELEÇÃO EM LOTE DAS SUGESTÕES                          */}
         {/* ========================================================================= */}
         {showReviewModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+          <div 
+            onClick={(e) => { if (e.target === e.currentTarget) setShowReviewModal(false); }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+          >
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[92dvh] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
               {/* Topo do Modal */}
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <div className="px-5 py-4 border-b border-gray-100 bg-white shrink-0 flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
                     <span>🪄 Revisar Sugestões Inteligentes</span>
@@ -1629,14 +1632,14 @@ function TransactionsContent() {
                 <button
                   type="button"
                   onClick={() => setShowReviewModal(false)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1"
+                  className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Ações Rápidas de Seleção */}
-              <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs">
+              <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs shrink-0">
                 <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
                   <input
                     type="checkbox"
@@ -1659,7 +1662,7 @@ function TransactionsContent() {
               </div>
 
               {/* Lista de Transações com Sugestão */}
-              <div className="p-4 overflow-y-auto flex-1 space-y-2">
+              <div className="p-4 overflow-y-auto overscroll-contain flex-1 space-y-2">
                 {Array.from(suggestionsMap.entries()).map(([trxId, sugg]) => {
                   const trx = transactions.find((t) => t.id === trxId);
                   if (!trx) return null;
@@ -1699,7 +1702,7 @@ function TransactionsContent() {
                               {formatCurrency(trx.amount)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 text-xs">
+                          <div className="flex items-center gap-2 mt-1 text-xs flex-wrap">
                             <span className="font-semibold text-blue-900">
                               💡 {sugg.categoryName}
                               {sugg.subcategoryName ? ` › ${sugg.subcategoryName}` : ""}
@@ -1725,11 +1728,11 @@ function TransactionsContent() {
               </div>
 
               {/* Rodapé do Modal */}
-              <div className="p-4 border-t border-gray-100 bg-slate-50 flex items-center justify-between gap-3">
+              <div className="p-3.5 sm:p-4 border-t border-gray-100 bg-slate-50 shrink-0 flex flex-col-reverse sm:flex-row items-center justify-between gap-2">
                 <button
                   type="button"
                   onClick={() => setShowReviewModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs font-bold text-gray-600 hover:text-gray-900 transition-colors min-h-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100"
                 >
                   Cancelar
                 </button>
@@ -1738,7 +1741,7 @@ function TransactionsContent() {
                   type="button"
                   onClick={() => handleApplySelectedSuggestions(selectedSuggestionIds)}
                   disabled={selectedSuggestionIds.length === 0 || applyingBulk}
-                  className="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                  className="w-full sm:w-auto px-5 py-2.5 sm:py-2 bg-primary hover:bg-primary-dark text-white text-xs font-bold rounded-xl transition-all shadow-sm disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-1.5"
                 >
                   <span>⚡</span>
                   <span>
@@ -1754,22 +1757,25 @@ function TransactionsContent() {
 
         {/* Modal de confirmação de exclusão */}
         {deleteConfirmId && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
+          <div 
+            onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirmId(null); }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+          >
+            <div className="bg-white rounded-t-2xl sm:rounded-xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-gray-150 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
               <h3 className="text-lg font-bold text-gray-900">Deletar Transação</h3>
               <p className="text-sm text-gray-600">
                 Tem certeza que deseja deletar esta transação? Esta ação não pode ser desfeita.
               </p>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
                 <button
                   onClick={() => setDeleteConfirmId(null)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 min-h-[44px] flex items-center justify-center transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={() => handleDeleteTransaction(deleteConfirmId)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 min-h-[44px] flex items-center justify-center transition-colors"
                 >
                   Deletar
                 </button>
@@ -1798,10 +1804,13 @@ function TransactionsContent() {
         {/* MODAL DE VINCULAÇÃO DE RECEBIMENTO AO CONTRATO OU TÍTULO                  */}
         {/* ========================================================================= */}
         {linkingModalTrx && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+          <div 
+            onClick={(e) => { if (e.target === e.currentTarget) setLinkingModalTrx(null); }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+          >
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-xl w-full max-h-[92dvh] sm:max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-gray-150 animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
               {/* Header do Modal */}
-              <div className="p-5 border-b border-gray-100 bg-slate-50 flex items-start justify-between gap-3">
+              <div className="p-4 sm:p-5 border-b border-gray-100 bg-slate-50 shrink-0 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
                     <span>🔗 Vincular Recebimento</span>
@@ -1823,24 +1832,24 @@ function TransactionsContent() {
                 <button
                   type="button"
                   onClick={() => setLinkingModalTrx(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1"
+                  className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Busca e Lista */}
-              <div className="p-4 space-y-3 flex-1 overflow-hidden flex flex-col">
+              <div className="p-4 space-y-3 flex-1 overflow-hidden flex flex-col min-h-0">
                 <input
                   type="text"
                   value={linkingSearch}
                   onChange={(e) => setLinkingSearch(e.target.value)}
                   placeholder="🔍 Buscar por cliente, contrato ou NF..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none"
                   autoFocus
                 />
 
-                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                <div className="flex-1 overflow-y-auto overscroll-contain space-y-2 pr-1">
                   {filteredOpenReceivables.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 text-xs">
                       {openReceivables.length === 0
@@ -1919,11 +1928,11 @@ function TransactionsContent() {
               </div>
 
               {/* Rodapé */}
-              <div className="p-3.5 bg-slate-50 border-t border-gray-100 flex justify-end">
+              <div className="p-3.5 bg-slate-50 border-t border-gray-100 shrink-0 flex justify-end">
                 <button
                   type="button"
                   onClick={() => setLinkingModalTrx(null)}
-                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors min-h-[44px] flex items-center justify-center"
                 >
                   Fechar
                 </button>
@@ -1936,10 +1945,13 @@ function TransactionsContent() {
         {/* MODAL DE VINCULAÇÃO DE PAGAMENTO À CONTA A PAGAR                          */}
         {/* ========================================================================= */}
         {linkingPayableTrx && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+          <div 
+            onClick={(e) => { if (e.target === e.currentTarget) setLinkingPayableTrx(null); }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
+          >
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-xl w-full max-h-[92dvh] sm:max-h-[85vh] flex flex-col shadow-2xl border border-gray-150 overflow-hidden animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 duration-200">
               {/* Header do Modal */}
-              <div className="p-5 border-b border-gray-100 bg-slate-50 flex items-start justify-between gap-3">
+              <div className="p-4 sm:p-5 border-b border-gray-100 bg-slate-50 shrink-0 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
                     <span>💳 Vincular à Conta a Pagar</span>
@@ -1961,24 +1973,24 @@ function TransactionsContent() {
                 <button
                   type="button"
                   onClick={() => setLinkingPayableTrx(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1"
+                  className="text-gray-400 hover:text-gray-600 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors text-lg font-bold"
                 >
                   ✕
                 </button>
               </div>
 
               {/* Busca e Lista de Contas a Pagar em Aberto */}
-              <div className="p-4 space-y-3 flex-1 overflow-hidden flex flex-col">
+              <div className="p-4 space-y-3 flex-1 overflow-hidden flex flex-col min-h-0">
                 <input
                   type="text"
                   value={linkingPayableSearch}
                   onChange={(e) => setLinkingPayableSearch(e.target.value)}
                   placeholder="🔍 Buscar por fornecedor ou descrição da conta..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none"
+                  className="w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-xl text-sm sm:text-xs focus:ring-2 focus:ring-primary focus:outline-none"
                   autoFocus
                 />
 
-                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                <div className="flex-1 overflow-y-auto overscroll-contain space-y-2 pr-1">
                   {filteredOpenPayables.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 text-xs">
                       {openPayables.length === 0
@@ -2035,11 +2047,11 @@ function TransactionsContent() {
               </div>
 
               {/* Rodapé */}
-              <div className="p-3.5 bg-slate-50 border-t border-gray-100 flex justify-end">
+              <div className="p-3.5 bg-slate-50 border-t border-gray-100 shrink-0 flex justify-end">
                 <button
                   type="button"
                   onClick={() => setLinkingPayableTrx(null)}
-                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors min-h-[44px] flex items-center justify-center"
                 >
                   Fechar
                 </button>

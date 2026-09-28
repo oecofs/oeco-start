@@ -425,144 +425,164 @@ export default function FinalizeReconciliationModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 overflow-hidden backdrop-blur-xs animate-in fade-in duration-150"
       onClick={step === "sending" ? undefined : onClose}
     >
       <div
-        className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md shadow-2xl border border-gray-150 flex flex-col max-h-[92dvh] sm:max-h-[88vh] overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ===== STEP: SUMMARY ===== */}
-        {step === "summary" && (
-          <>
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">
+        {/* Header Fixo */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-white shrink-0">
+          <div>
+            <h3 className="text-base font-bold text-gray-800">
               Finalizar Conciliação
             </h3>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-xs text-gray-500 mt-0.5">
               {formatMonthLabel(monthRef)}
             </p>
-
-            {/* Resumo */}
-            <div className="space-y-3 mb-4">
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-600">Transações conciliadas</span>
-                <span className="font-medium text-gray-800">
-                  {relevantTransactions.length}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-600">Total de entradas</span>
-                <span className="font-medium text-green-600">
-                  {formatCurrency(totalIncome)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-600">Total de saídas</span>
-                <span className="font-medium text-red-600">
-                  {formatCurrency(totalExpense)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-600">Saldo do mês</span>
-                <span
-                  className={`font-bold ${
-                    balance >= 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {formatCurrency(balance)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-600">Recebíveis do mês</span>
-                <span className="font-medium text-gray-800">
-                  {receivedReceivables.length}
-                </span>
-              </div>
-
-              {/* Aviso de recorrência */}
-              {receivables.some((r) => r.is_recurring) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
-                  📅{" "}
-                  {receivables.filter((r) => r.is_recurring).length} recebível(eis)
-                  recorrente(s) serão criados automaticamente para o próximo mês.
-                </div>
-              )}
-
-              {/* Aviso de webhook */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500">
-                📤 Os dados serão enviados automaticamente para o escritório.
-              </div>
-            </div>
-
-            {/* Botões */}
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleFinalize}
-                className="flex-1 px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors"
-              >
-                Finalizar
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* ===== STEP: SENDING ===== */}
-        {step === "sending" && (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-            <p className="text-gray-600 font-medium">Finalizando conciliação...</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Enviando dados e gerando recebíveis
-            </p>
           </div>
-        )}
-
-        {/* ===== STEP: DONE ===== */}
-        {step === "done" && (
-          <div className="text-center py-6">
-            <span className="text-5xl">✅</span>
-            <h3 className="text-lg font-semibold text-gray-800 mt-3 mb-1">
-              Conciliação finalizada!
-            </h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Os dados foram enviados e os recebíveis recorrentes do próximo mês
-              foram criados.
-            </p>
+          {step !== "sending" && (
             <button
+              type="button"
               onClick={onClose}
-              className="w-full px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors"
+              className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1.5 -mr-1 rounded-lg cursor-pointer"
             >
-              Concluir
+              ✕
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* ===== STEP: ERROR ===== */}
-        {step === "error" && (
-          <div className="text-center py-6">
-            <span className="text-5xl">⚠️</span>
-            <h3 className="text-lg font-semibold text-gray-800 mt-3 mb-1">
-              Erro ao finalizar
-            </h3>
-            <p className="text-sm text-red-500 mb-4">{errorMsg}</p>
-            <button
-              onClick={() => setStep("summary")}
-              className="w-full px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Voltar
-            </button>
-          </div>
-        )}
+        <div className="p-4 sm:p-5 overflow-y-auto overscroll-contain flex-1">
+          {/* ===== STEP: SUMMARY ===== */}
+          {step === "summary" && (
+            <div>
+              {/* Resumo */}
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Transações conciliadas</span>
+                  <span className="font-medium text-gray-800">
+                    {relevantTransactions.length}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Total de entradas</span>
+                  <span className="font-medium text-green-600">
+                    {formatCurrency(totalIncome)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Total de saídas</span>
+                  <span className="font-medium text-red-600">
+                    {formatCurrency(totalExpense)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Saldo do mês</span>
+                  <span
+                    className={`font-bold ${
+                      balance >= 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {formatCurrency(balance)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">Recebíveis do mês</span>
+                  <span className="font-medium text-gray-800">
+                    {receivedReceivables.length}
+                  </span>
+                </div>
+
+                {/* Aviso de recorrência */}
+                {receivables.some((r) => r.is_recurring) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
+                    📅{" "}
+                    {receivables.filter((r) => r.is_recurring).length} recebível(eis)
+                    recorrente(s) serão criados automaticamente para o próximo mês.
+                  </div>
+                )}
+
+                {/* Aviso de webhook */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500">
+                  📤 Os dados serão enviados automaticamente para o escritório.
+                </div>
+              </div>
+
+              {/* Botões */}
+              <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 px-4 py-2.5 sm:py-2 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm sm:text-xs min-h-[44px] flex items-center justify-center"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFinalize}
+                  className="flex-1 px-4 py-2.5 sm:py-2 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark transition-colors text-sm sm:text-xs min-h-[44px] flex items-center justify-center shadow-xs"
+                >
+                  Finalizar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ===== STEP: SENDING ===== */}
+          {step === "sending" && (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+              <p className="text-gray-600 font-medium">Finalizando conciliação...</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Enviando dados e gerando recebíveis
+              </p>
+            </div>
+          )}
+
+          {/* ===== STEP: DONE ===== */}
+          {step === "done" && (
+            <div className="text-center py-6">
+              <span className="text-5xl">✅</span>
+              <h3 className="text-lg font-semibold text-gray-800 mt-3 mb-1">
+                Conciliação finalizada!
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Os dados foram enviados e os recebíveis recorrentes do próximo mês
+                foram criados.
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full px-4 py-2.5 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark transition-colors text-sm min-h-[44px]"
+              >
+                Concluir
+              </button>
+            </div>
+          )}
+
+          {/* ===== STEP: ERROR ===== */}
+          {step === "error" && (
+            <div className="text-center py-6">
+              <span className="text-5xl">⚠️</span>
+              <h3 className="text-lg font-semibold text-gray-800 mt-3 mb-1">
+                Erro ao finalizar
+              </h3>
+              <p className="text-sm text-red-500 mb-4">{errorMsg}</p>
+              <button
+                type="button"
+                onClick={() => setStep("summary")}
+                className="w-full px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm min-h-[44px]"
+              >
+                Voltar
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
