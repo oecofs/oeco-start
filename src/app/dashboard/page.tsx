@@ -379,24 +379,56 @@ export default function DashboardPage() {
               </div>
             )}
             
-            {/* Card de Destaque — Relatórios Financeiros (BI) */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6 mb-6 shadow-sm hover:border-primary/40 transition-colors">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-base md:text-lg font-bold text-gray-800">
-                    Relatórios Financeiros
-                  </h2>
-                  <p className="text-xs md:text-sm text-gray-500 leading-relaxed max-w-xl">
-                    Explore análises verticais e horizontais (AV/AH), gráficos temporais, composição de receitas/despesas, etc.
+            {/* Seção Estratégica: Relatórios & KPIs Lado a Lado */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* Card 1: Relatórios Financeiros (BI / DRE) */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6 shadow-sm hover:border-primary/40 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">📊</span>
+                    <h2 className="text-base md:text-lg font-bold text-gray-800">
+                      Relatórios Financeiros
+                    </h2>
+                  </div>
+                  <p className="text-xs md:text-sm text-gray-500 leading-relaxed">
+                    DRE Gerencial, análises verticais e horizontais (AV/AH), fluxo temporal por categorias, centros de custo e contas.
                   </p>
                 </div>
-                <Link
-                  href="/reports"
-                  className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white font-medium text-xs md:text-sm px-4 py-2.5 rounded-lg shadow-sm transition-colors whitespace-nowrap flex-shrink-0"
-                >
-                  <span>Acessar Relatórios</span>
-                  <span className="text-base">→</span>
-                </Link>
+                <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-xs text-gray-400 font-medium">Demonstrativos & BI</span>
+                  <Link
+                    href="/reports"
+                    className="inline-flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-primary hover:text-white text-gray-700 font-bold text-xs md:text-sm px-3.5 py-2 rounded-lg shadow-2xs transition-all"
+                  >
+                    <span>Acessar Relatórios</span>
+                    <span>→</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Card 2: Indicadores & KPIs Estratégicos */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5 md:p-6 shadow-sm hover:border-[#2C1810]/40 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">🎯</span>
+                    <h2 className="text-base md:text-lg font-bold text-gray-800">
+                      Indicadores & KPIs
+                    </h2>
+                  </div>
+                  <p className="text-xs md:text-sm text-gray-500 leading-relaxed">
+                    Saúde financeira, margem operacional, burn rate, runway de caixa, conciliação e ciclo de cobrança dos clientes.
+                  </p>
+                </div>
+                <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-xs text-gray-400 font-medium">3 Eixos de Gestão</span>
+                  <Link
+                    href="/kpis"
+                    className="inline-flex items-center justify-center gap-1.5 bg-[#2C1810] hover:bg-[#1a0f0a] text-white font-bold text-xs md:text-sm px-3.5 py-2 rounded-lg shadow-2xs transition-all"
+                  >
+                    <span>Ver Indicadores</span>
+                    <span>→</span>
+                  </Link>
+                </div>
               </div>
             </div>
 
