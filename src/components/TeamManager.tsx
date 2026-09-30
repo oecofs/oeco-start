@@ -180,7 +180,7 @@ export default function TeamManager() {
     }
   }
 
-  // Adicionar / Convidar membro
+  // Adicionar / Convidar membro via API segura com Supabase Admin
   async function handleInviteMember(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedCompany || !inviteEmail.trim()) return;
@@ -191,49 +191,30 @@ export default function TeamManager() {
     const emailClean = inviteEmail.trim().toLowerCase();
 
     try {
-      // 1. Tenta vincular diretamente caso o usuário já exista no sistema
-      const { data, error } = await supabase.rpc("add_company_member_by_email", {
-        p_company_id: selectedCompany.id,
-        p_email: emailClean,
-        p_role: inviteRole,
+      const response = await fetch("/api/team/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyId: selectedCompany.id,
+          email: emailClean,
+          role: inviteRole,
+        }),
       });
 
-      if (!error && data?.success) {
-        setFeedback({
-          type: "success",
-          message: `Usuário "${emailClean}" adicionado à empresa com sucesso!`,
-        });
-        setShowInviteModal(false);
-        setInviteEmail("");
-        setInvitePassword("");
-        fetchMembers();
-        return;
+      const resData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(resData?.error || "Erro ao processar convite.");
       }
 
-      // 2. Se o usuário ainda não existe no sistema, enviamos o link seguro de convite/ativação
-      const origin = window.location.origin;
-      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(emailClean, {
-        redirectTo: `${origin}/auth/reset-password`,
+      setFeedback({
+        type: "success",
+        message: resData.message || `Convite enviado com sucesso para "${emailClean}".`,
       });
-
-      if (resetErr) {
-        setFeedback({
-          type: "error",
-          message:
-            data?.message ||
-            resetErr.message ||
-            "Não foi possível vincular. O e-mail precisa criar uma conta primeiro ou confirme o endereço digitado.",
-        });
-      } else {
-        setFeedback({
-          type: "success",
-          message: `Convite de acesso enviado para "${emailClean}". Assim que ele definir a senha pelo e-mail, o acesso estará ativo!`,
-        });
-        setShowInviteModal(false);
-        setInviteEmail("");
-        setInvitePassword("");
-        fetchMembers();
-      }
+      setShowInviteModal(false);
+      setInviteEmail("");
+      setInvitePassword("");
+      fetchMembers();
     } catch (err: any) {
       setFeedback({
         type: "error",
