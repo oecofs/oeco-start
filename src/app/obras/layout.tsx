@@ -14,8 +14,7 @@ export default function ObrasLayout({ children }: { children: React.ReactNode })
   const { selectedCompany, isMaster, loading: companyLoading } = useCompany();
 
   const isObrasOnly = selectedCompany?.segment === "obras_only";
-  const hasObrasAccess =
-    isMaster ||
+  const isCompanyObrasEnabled =
     selectedCompany?.segment === "obras_only" ||
     selectedCompany?.segment === "obras_financial";
 
@@ -34,28 +33,44 @@ export default function ObrasLayout({ children }: { children: React.ReactNode })
     return <>{children}</>;
   }
 
-  // Se a empresa não tem o módulo de obras habilitado e não for Master, bloqueia o acesso
-  if (!companyLoading && selectedCompany && !hasObrasAccess) {
+  // Se a empresa não tem o módulo de obras habilitado, exibe tela informativa idêntica ao módulo jurídico
+  if (!companyLoading && selectedCompany && !isCompanyObrasEnabled) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-900 border border-amber-200 flex items-center justify-center text-3xl mx-auto">
-            🏗️
-          </div>
-          <h2 className="text-xl font-black text-gray-900">
-            Módulo Obras Não Habilitado
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
-            A empresa ativa <strong>"{selectedCompany.name}"</strong> está com perfil do Financeiro Geral e não possui o módulo de gestão de obras habilitado.
+        <div className="p-4 md:p-8 max-w-3xl mx-auto text-center py-16 space-y-4">
+          <div className="text-5xl">🏗️</div>
+          <h2 className="text-2xl font-bold text-gray-900">Módulo Obras Desativado</h2>
+          <p className="text-sm text-gray-600 max-w-md mx-auto">
+            A empresa ativa <strong>{selectedCompany.name}</strong> está configurada no segmento padrão (Comércio/Serviços Gerais).
           </p>
-          <div className="pt-2 flex flex-col gap-2">
-            <Link
-              href="/dashboard"
-              className="w-full py-2.5 px-4 rounded-xl bg-[#2C1810] hover:bg-black text-white font-bold text-xs shadow-sm transition-colors text-center inline-flex items-center justify-center gap-1.5"
-            >
-              <span>💼</span> Ir para o Financeiro Geral
-            </Link>
-          </div>
+          {isMaster ? (
+            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href="/settings"
+                className="bg-[#2C1810] text-white text-xs font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors inline-block"
+              >
+                Ativar Módulo Obras em Configurações (Master) →
+              </Link>
+              <Link
+                href="/dashboard"
+                className="bg-white border border-gray-300 text-gray-700 text-xs font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors inline-block"
+              >
+                Ir para o Financeiro Geral
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3 pt-2">
+              <p className="text-xs text-gray-400">
+                Solicite ao administrador Master a ativação do módulo de obras para este cliente.
+              </p>
+              <Link
+                href="/dashboard"
+                className="bg-[#2C1810] text-white text-xs font-semibold px-5 py-2.5 rounded-xl hover:bg-black transition-colors inline-block"
+              >
+                Ir para o Financeiro Geral
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     );
