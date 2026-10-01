@@ -11,7 +11,7 @@ export type Company = {
   logo_url?: string | null;
   is_active: boolean;
   role?: "master" | "admin" | "operator" | "viewer";
-  segment?: "general" | "legal";
+  segment?: "general" | "legal" | "obras_only" | "obras_financial";
 };
 
 type CompanyContextType = {
@@ -22,7 +22,11 @@ type CompanyContextType = {
   loading: boolean;
   selectCompany: (companyId: string) => void;
   refreshCompanies: () => Promise<void>;
-  createCompany: (name: string, cnpj?: string) => Promise<Company | null>;
+  createCompany: (
+    name: string,
+    cnpj?: string,
+    segment?: "general" | "legal" | "obras_only" | "obras_financial"
+  ) => Promise<Company | null>;
 };
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -197,7 +201,11 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const createCompany = async (name: string, cnpj?: string): Promise<Company | null> => {
+  const createCompany = async (
+    name: string,
+    cnpj?: string,
+    segment: "general" | "legal" | "obras_only" | "obras_financial" = "general"
+  ): Promise<Company | null> => {
     try {
       const {
         data: { user },
@@ -205,12 +213,13 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
       if (!user || !isMaster) return null;
 
-      // 1. Cria a empresa
+      // 1. Cria a empresa com o segmento/perfil configurado
       const { data: newCompany, error: compError } = await supabase
         .from("companies")
         .insert({
           name: name.trim(),
           cnpj: cnpj?.trim() || null,
+          segment: segment,
           is_active: true,
         })
         .select()

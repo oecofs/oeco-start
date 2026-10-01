@@ -82,6 +82,34 @@ export default function ObrasConfiguracoesPage() {
         </div>
       )}
 
+      {/* Info do Perfil da Empresa Ativa */}
+      {selectedCompany && (
+        <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-2xs flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-700">Empresa:</span>
+            <span className="font-black text-gray-900">{selectedCompany.name}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500 font-medium">Perfil de Acesso:</span>
+            <span
+              className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${
+                selectedCompany.segment === "obras_only"
+                  ? "bg-amber-100 text-amber-900 border-amber-200"
+                  : selectedCompany.segment === "obras_financial"
+                  ? "bg-blue-100 text-blue-900 border-blue-200"
+                  : "bg-slate-100 text-slate-800 border-slate-200"
+              }`}
+            >
+              {selectedCompany.segment === "obras_only"
+                ? "🏗️ Obras Only (Exclusivo)"
+                : selectedCompany.segment === "obras_financial"
+                ? "🏗️💼 Obras + Financeiro Integrado"
+                : "🏢 Financeiro Geral"}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Sub-tabs Elegantes */}
       <div className="flex gap-2 border-b border-gray-200">
         {[

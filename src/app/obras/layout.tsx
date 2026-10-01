@@ -5,11 +5,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import { createClient } from "@/lib/supabase/client";
+import { useCompany } from "@/contexts/CompanyContext";
 
 export default function ObrasLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { selectedCompany } = useCompany();
+
+  const isObrasOnly = selectedCompany?.segment === "obras_only";
 
   const navItems = [
     { href: "/obras", label: "Início", icon: "🏠" },
@@ -53,14 +57,16 @@ export default function ObrasLayout({ children }: { children: React.ReactNode })
               <CompanySwitcher />
             </div>
 
-            {/* Link para voltar ao Oeco Start Principal no Desktop */}
-            <Link
-              href="/dashboard"
-              title="Ir para o Financeiro Geral (Oeco Start)"
-              className="hidden sm:flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              <span>💼</span> Financeiro Geral
-            </Link>
+            {/* Link para voltar ao Oeco Start Principal no Desktop (Apenas se não for Obras Only) */}
+            {!isObrasOnly && (
+              <Link
+                href="/dashboard"
+                title="Ir para o Financeiro Geral (Oeco Start)"
+                className="hidden sm:flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                <span>💼</span> Financeiro Geral
+              </Link>
+            )}
 
             <button
               onClick={handleLogout}

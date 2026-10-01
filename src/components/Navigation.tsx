@@ -1,33 +1,35 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { getWhiteLabelConfig } from "@/lib/whitelabel";
 import CompanySwitcher from "@/components/CompanySwitcher";
-
 import { useCompany } from "@/contexts/CompanyContext";
-
-const defaultNavItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/transactions", label: "Transações", icon: "📋" },
-  { href: "/receivables", label: "Recebíveis", icon: "💰" },
-  { href: "/payables", label: "A Pagar", icon: "💳" },
-  { href: "/settings", label: "Config", icon: "⚙️" },
-];
 
 export default function Navigation({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const wl = getWhiteLabelConfig();
   const { selectedCompany } = useCompany();
 
   const isLegal = selectedCompany?.segment === "legal";
+  const isObrasOnly = selectedCompany?.segment === "obras_only";
+  const hasObrasModule = selectedCompany?.segment === "obras_financial" || selectedCompany?.segment === "general";
+
+  // Se a empresa ativa for estritamente "Obras Only", bloqueia e redireciona qualquer tentativa de acessar o financeiro geral
+  useEffect(() => {
+    if (isObrasOnly && !pathname.startsWith("/obras")) {
+      router.replace("/obras");
+    }
+  }, [isObrasOnly, pathname, router]);
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
     { href: "/transactions", label: "Transações", icon: "📋" },
     { href: "/receivables", label: "Recebíveis", icon: "💰" },
     { href: "/payables", label: "A Pagar", icon: "💳" },
-    { href: "/obras", label: "Obras", icon: "🏗️" },
+    ...(hasObrasModule ? [{ href: "/obras", label: "Obras", icon: "🏗️" }] : []),
     ...(isLegal ? [{ href: "/legal-cases", label: "Processos", icon: "⚖️" }] : []),
     { href: "/settings", label: "Config", icon: "⚙️" },
   ];

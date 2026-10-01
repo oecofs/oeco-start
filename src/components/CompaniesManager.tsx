@@ -32,14 +32,18 @@ export default function CompaniesManager() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createCnpj, setCreateCnpj] = useState("");
-  const [createSegment, setCreateSegment] = useState<"general" | "legal">("general");
+  const [createSegment, setCreateSegment] = useState<
+    "general" | "legal" | "obras_only" | "obras_financial"
+  >("general");
   const [savingCreate, setSavingCreate] = useState(false);
 
   // Modal de Edição de Empresa
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [editName, setEditName] = useState("");
   const [editCnpj, setEditCnpj] = useState("");
-  const [editSegment, setEditSegment] = useState<"general" | "legal">("general");
+  const [editSegment, setEditSegment] = useState<
+    "general" | "legal" | "obras_only" | "obras_financial"
+  >("general");
   const [savingEdit, setSavingEdit] = useState(false);
 
   const [error, setError] = useState("");
@@ -145,17 +149,17 @@ export default function CompaniesManager() {
     }
 
     setSavingCreate(true);
-    const created = await createCompany(createName, createCnpj);
+    const created = await createCompany(createName, createCnpj, createSegment);
     setSavingCreate(false);
 
     if (created) {
-      if (createSegment === "legal") {
+      if (createSegment !== "general") {
         await supabase
           .from("companies")
-          .update({ segment: "legal" })
+          .update({ segment: createSegment })
           .eq("id", created.id);
       }
-      setSuccess(`Empresa "${created.name}" criada com sucesso com categorias padrão!`);
+      setSuccess(`Empresa "${created.name}" criada com sucesso!`);
       setCreateName("");
       setCreateCnpj("");
       setCreateSegment("general");
@@ -481,13 +485,23 @@ export default function CompaniesManager() {
                           {comp.cnpj ? `CNPJ: ${comp.cnpj}` : "Sem CNPJ cadastrado"}
                         </span>
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            comp.segment === "legal"
+                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                            comp.segment === "obras_only"
+                              ? "bg-amber-100 text-amber-900 border-amber-200"
+                              : comp.segment === "obras_financial"
+                              ? "bg-blue-100 text-blue-900 border-blue-200"
+                              : comp.segment === "legal"
                               ? "bg-purple-100 text-purple-800 border border-purple-200"
                               : "bg-slate-100 text-slate-700 border border-slate-200"
                           }`}
                         >
-                          {comp.segment === "legal" ? "⚖️ Jurídico" : "🏢 Padrão"}
+                          {comp.segment === "obras_only"
+                            ? "🏗️ Obras Only"
+                            : comp.segment === "obras_financial"
+                            ? "🏗️💼 Obras + Financeiro"
+                            : comp.segment === "legal"
+                            ? "⚖️ Jurídico"
+                            : "🏢 Financeiro Geral"}
                         </span>
                       </div>
                     </div>
@@ -720,18 +734,24 @@ export default function CompaniesManager() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                    Segmento de Atuação (Exclusivo Master)
+                    Perfil / Segmento de Atuação (Exclusivo Master)
                   </label>
                   <select
                     value={editSegment}
-                    onChange={(e) => setEditSegment(e.target.value as "general" | "legal")}
+                    onChange={(e) =>
+                      setEditSegment(
+                        e.target.value as "general" | "legal" | "obras_only" | "obras_financial"
+                      )
+                    }
                     className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
-                    <option value="general">🏢 Padrão (Comércio, Serviços, PME em Geral)</option>
-                    <option value="legal">⚖️ Jurídico (Advocacia, Escritórios, Autônomos)</option>
+                    <option value="general">🏢 Financeiro Geral (Padrão PME / Serviços / Comércio)</option>
+                    <option value="obras_only">🏗️ Obras Only (Exclusivo Gestão de Obras / Construtoras)</option>
+                    <option value="obras_financial">🏗️💼 Obras + Financeiro Geral Integrado</option>
+                    <option value="legal">⚖️ Jurídico (Advocacia / Escritórios / Contencioso)</option>
                   </select>
                   <p className="text-[10px] text-gray-400 mt-1">
-                    Apenas o usuário Master tem permissão para alterar o segmento do cliente.
+                    "Obras Only" oculta o módulo financeiro geral e direciona o acesso para a gestão de obras.
                   </p>
                 </div>
               </div>
@@ -818,16 +838,25 @@ export default function CompaniesManager() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                    Segmento de Atuação (Exclusivo Master)
+                    Perfil / Segmento de Atuação (Exclusivo Master)
                   </label>
                   <select
                     value={createSegment}
-                    onChange={(e) => setCreateSegment(e.target.value as "general" | "legal")}
+                    onChange={(e) =>
+                      setCreateSegment(
+                        e.target.value as "general" | "legal" | "obras_only" | "obras_financial"
+                      )
+                    }
                     className="w-full px-3 py-2.5 sm:py-2 text-sm sm:text-xs border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
-                    <option value="general">🏢 Padrão (Comércio, Serviços, PME em Geral)</option>
-                    <option value="legal">⚖️ Jurídico (Advocacia, Escritórios, Autônomos)</option>
+                    <option value="general">🏢 Financeiro Geral (Padrão PME / Serviços / Comércio)</option>
+                    <option value="obras_only">🏗️ Obras Only (Exclusivo Gestão de Obras / Construtoras)</option>
+                    <option value="obras_financial">🏗️💼 Obras + Financeiro Geral Integrado</option>
+                    <option value="legal">⚖️ Jurídico (Advocacia / Escritórios / Contencioso)</option>
                   </select>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Defina se o cliente terá visão exclusiva de Obras ou acesso integrado ao financeiro.
+                  </p>
                 </div>
               </div>
 
