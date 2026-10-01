@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import CompanySwitcher from "@/components/CompanySwitcher";
@@ -11,9 +11,13 @@ export default function ObrasLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, isMaster, loading: companyLoading } = useCompany();
 
   const isObrasOnly = selectedCompany?.segment === "obras_only";
+  const hasObrasAccess =
+    isMaster ||
+    selectedCompany?.segment === "obras_only" ||
+    selectedCompany?.segment === "obras_financial";
 
   const navItems = [
     { href: "/obras", label: "Início", icon: "🏠" },
@@ -28,6 +32,33 @@ export default function ObrasLayout({ children }: { children: React.ReactNode })
   // Se for a página de login dedicada de obras, renderiza sem a casca do app
   if (pathname === "/obras/login") {
     return <>{children}</>;
+  }
+
+  // Se a empresa não tem o módulo de obras habilitado e não for Master, bloqueia o acesso
+  if (!companyLoading && selectedCompany && !hasObrasAccess) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-900 border border-amber-200 flex items-center justify-center text-3xl mx-auto">
+            🏗️
+          </div>
+          <h2 className="text-xl font-black text-gray-900">
+            Módulo Obras Não Habilitado
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
+            A empresa ativa <strong>"{selectedCompany.name}"</strong> está com perfil do Financeiro Geral e não possui o módulo de gestão de obras habilitado.
+          </p>
+          <div className="pt-2 flex flex-col gap-2">
+            <Link
+              href="/dashboard"
+              className="w-full py-2.5 px-4 rounded-xl bg-[#2C1810] hover:bg-black text-white font-bold text-xs shadow-sm transition-colors text-center inline-flex items-center justify-center gap-1.5"
+            >
+              <span>💼</span> Ir para o Financeiro Geral
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

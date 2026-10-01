@@ -11,11 +11,11 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const router = useRouter();
   const wl = getWhiteLabelConfig();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, isMaster } = useCompany();
 
   const isLegal = selectedCompany?.segment === "legal";
   const isObrasOnly = selectedCompany?.segment === "obras_only";
-  const hasObrasModule = selectedCompany?.segment === "obras_financial" || selectedCompany?.segment === "general";
+  const hasObrasModule = selectedCompany?.segment === "obras_financial" || isMaster;
 
   // Se a empresa ativa for estritamente "Obras Only", bloqueia e redireciona qualquer tentativa de acessar o financeiro geral
   useEffect(() => {
