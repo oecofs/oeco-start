@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useState, useEffect, useRef, Suspense } from "react";
+import React, { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +25,8 @@ interface SupplierOption {
 interface CategoryOption {
   id: string;
   name: string;
+  parent_id?: string | null;
+  type?: string;
 }
 
 function RegistrarDespesaContent() {
@@ -53,7 +55,8 @@ function RegistrarDespesaContent() {
   const [statusPagamento, setStatusPagamento] = useState("pago");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
   const [supplierName, setSupplierName] = useState("");
-  const [categoriaId, setCategoriaId] = useState("");
+  const [parentCategoriaId, setParentCategoriaId] = useState("");
+  const [subcategoriaId, setSubcategoriaId] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
   // Foto & OCR
@@ -107,12 +110,13 @@ function RegistrarDespesaContent() {
           .order("name");
         setSuppliers(supData || []);
 
-        // 3. Categorias
+        // 3. Categorias e Subcategorias
         const { data: catData } = await supabase
           .from("categories")
-          .select("id, name")
+          .select("id, name, parent_id, type")
           .eq("company_id", currentCompanyId)
-          .order("name");
+          .order("sort_order", { ascending: true })
+          .order("name", { ascending: true });
         setCategories(catData || []);
       } catch (err) {
         console.error("Erro ao carregar dados iniciais:", err);
@@ -121,6 +125,17 @@ function RegistrarDespesaContent() {
 
     loadInitialData();
   }, [selectedCompany, supabase, preSelectedObraId]);
+
+  // Separação de Categorias Pais e Subcategorias
+  const parentCategories = useMemo(
+    () => categories.filter((c) => !c.parent_id),
+    [categories]
+  );
+
+  const availableSubcategories = useMemo(
+    () => categories.filter((c) => c.parent_id === parentCategoriaId),
+    [categories, parentCategoriaId]
+  );
 
   // Manipular upload de foto e disparar IA OCR
   async function handlePhotoCapture(e: React.ChangeEvent<HTMLInputElement>) {
@@ -184,7 +199,13 @@ function RegistrarDespesaContent() {
             c.name.toLowerCase().includes(ocr.categoria_sugerida.toLowerCase())
           );
           if (matchedCat) {
-            setCategoriaId(matchedCat.id);
+            if (matchedCat.parent_id) {
+              setParentCategoriaId(matchedCat.parent_id);
+              setSubcategoriaId(matchedCat.id);
+            } else {
+              setParentCategoriaId(matchedCat.id);
+              setSubcategoriaId("");
+            }
           }
         }
 
@@ -222,7 +243,16 @@ function RegistrarDespesaContent() {
         setSelectedSupplierId(data.id);
         setSupplierName(data.name);
         if (newSupplierCatId) {
-          setCategoriaId(newSupplierCatId);
+          const supCat = categories.find((c) => c.id === newSupplierCatId);
+          if (supCat) {
+            if (supCat.parent_id) {
+              setParentCategoriaId(supCat.parent_id);
+              setSubcategoriaId(supCat.id);
+            } else {
+              setParentCategoriaId(supCat.id);
+              setSubcategoriaId("");
+            }
+          }
         }
         setShowSupplierModal(false);
         setNewSupplierName("");
@@ -283,7 +313,14 @@ function RegistrarDespesaContent() {
         }
       }
 
-      const categoriaObj = categories.find((c) => c.id === categoriaId);
+      const parentObj = categories.find((c) => c.id === parentCategoriaId);
+      const subObj = categories.find((c) => c.id === subcategoriaId);
+
+      const categoriaFinalId = subcategoriaId || parentCategoriaId || null;
+      const categoriaFinalNome = subObj
+        ? `${parentObj ? `${parentObj.name} > ` : ""}${subObj.name}`
+        : parentObj?.name || null;
+
       const formaFinal =
         formaPagamento === "cartao_credito"
           ? `Cartão de Crédito (${numParcelas === "13+" ? "13+ parcelas" : `${numParcelas}x`})`
@@ -300,8 +337,8 @@ function RegistrarDespesaContent() {
         status_pagamento: statusPagamento,
         fornecedor_id: selectedSupplierId || null,
         fornecedor_nome: supplierName.trim() || null,
-        categoria_id: categoriaId || null,
-        categoria_nome: categoriaObj?.name || null,
+        categoria_id: categoriaFinalId,
+        categoria_nome: categoriaFinalNome,
         foto_url: uploadedPhotoUrl,
         ocr_raw: ocrRaw,
         observacoes: observacoes.trim() || null,
@@ -319,6 +356,8 @@ function RegistrarDespesaContent() {
         setValor("");
         setSupplierName("");
         setSelectedSupplierId("");
+        setParentCategoriaId("");
+        setSubcategoriaId("");
         setObservacoes("");
         setPhotoFile(null);
         setPhotoPreview(null);
@@ -548,23 +587,53 @@ function RegistrarDespesaContent() {
           </div>
         </div>
 
-        {/* Categoria de Custo */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-            Categoria do Custo
-          </label>
-          <select
-            value={categoriaId}
-            onChange={(e) => setCategoriaId(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium bg-white"
-          >
-            <option value="">Selecione a Categoria...</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+        {/* Categoria e Subcategoria de Custo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+              Categoria Principal
+            </label>
+            <select
+              value={parentCategoriaId}
+              onChange={(e) => {
+                setParentCategoriaId(e.target.value);
+                setSubcategoriaId("");
+              }}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium bg-white"
+            >
+              <option value="">Selecione a Categoria...</option>
+              {parentCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+              Subcategoria
+            </label>
+            <select
+              value={subcategoriaId}
+              onChange={(e) => setSubcategoriaId(e.target.value)}
+              disabled={!parentCategoriaId || availableSubcategories.length === 0}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+              <option value="">
+                {!parentCategoriaId
+                  ? "Selecione a categoria primeiro..."
+                  : availableSubcategories.length === 0
+                  ? "Sem subcategorias para este item"
+                  : "Selecione a Subcategoria..."}
               </option>
-            ))}
-          </select>
+              {availableSubcategories.map((sc) => (
+                <option key={sc.id} value={sc.id}>
+                  {sc.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Forma de Pagamento Simplificada (PIX ou Cartão de Crédito) */}
@@ -749,11 +818,26 @@ function RegistrarDespesaContent() {
                   className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium bg-white"
                 >
                   <option value="">Categoria Padrão (Opcional)...</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {parentCategories.map((p) => {
+                    const subs = categories.filter((c) => c.parent_id === p.id);
+                    if (subs.length === 0) {
+                      return (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      );
+                    }
+                    return (
+                      <optgroup key={p.id} label={p.name}>
+                        <option value={p.id}>{p.name} (Geral)</option>
+                        {subs.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
                 </select>
                 <button
                   type="button"
