@@ -27,6 +27,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
     { href: "/transactions", label: "Transações", icon: "📋" },
     { href: "/receivables", label: "Recebíveis", icon: "💰" },
     { href: "/payables", label: "A Pagar", icon: "💳" },
+    { href: "/obras", label: "Obras", icon: "🏗️" },
     ...(isLegal ? [{ href: "/legal-cases", label: "Processos", icon: "⚖️" }] : []),
     { href: "/settings", label: "Config", icon: "⚙️" },
   ];
