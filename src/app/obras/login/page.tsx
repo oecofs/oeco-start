@@ -78,7 +78,7 @@ export default function ObrasLoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu.email@empresa.com"
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium"
             />
           </div>
 
@@ -89,7 +89,7 @@ export default function ObrasLoginPage() {
               </label>
               <Link
                 href="/auth/reset-password"
-                className="text-[11px] font-bold text-amber-800 hover:underline"
+                className="text-[11px] font-bold text-[#2C1810] hover:underline"
               >
                 Esqueceu?
               </Link>
@@ -100,21 +100,21 @@ export default function ObrasLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 rounded-2xl bg-amber-700 hover:bg-amber-800 text-white font-extrabold text-sm shadow-md shadow-amber-700/20 active:scale-[0.99] transition-all disabled:opacity-50"
+            className="w-full py-3.5 px-4 rounded-2xl bg-[#2C1810] hover:bg-black text-white font-extrabold text-sm shadow-xs active:scale-[0.99] transition-all disabled:opacity-50"
           >
-            {loading ? "Entrando..." : "Entrar no Óeco Obras →"}
+            {loading ? "Entrando..." : "Entrar no Oeco Obras"}
           </button>
         </form>
 
         <div className="pt-2 text-center text-xs text-gray-400">
-          Acesso seguro corporativo • Óeco Consultoria
+          Acesso seguro corporativo • Oeco
         </div>
       </div>
     </div>
