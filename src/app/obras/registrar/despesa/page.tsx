@@ -47,7 +47,8 @@ function RegistrarDespesaContent() {
   );
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
-  const [formaPagamento, setFormaPagamento] = useState("pix");
+  const [formaPagamento, setFormaPagamento] = useState<"pix" | "cartao_credito">("pix");
+  const [numParcelas, setNumParcelas] = useState<string>("1");
   const [statusPagamento, setStatusPagamento] = useState("pago");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
   const [supplierName, setSupplierName] = useState("");
@@ -62,11 +63,11 @@ function RegistrarDespesaContent() {
   const [ocrSuccessMsg, setOcrSuccessMsg] = useState<string | null>(null);
   const [ocrRaw, setOcrRaw] = useState<any>(null);
 
-  // Modal de Fornecedor
+  // Modal de Fornecedor Simplificado
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [newSupplierName, setNewSupplierName] = useState("");
-  const [newSupplierCnpj, setNewSupplierCnpj] = useState("");
+  const [newSupplierCatId, setNewSupplierCatId] = useState("");
   const [creatingSupplier, setCreatingSupplier] = useState(false);
 
   // Status de envio
@@ -131,12 +132,10 @@ function RegistrarDespesaContent() {
     setFeedback(null);
 
     try {
-      // 1. Comprime a imagem no navegador
       const { blob, base64 } = await compressImage(file, 1600, 1600, 0.8);
       setCompressedBlob(blob);
       setPhotoPreview(base64);
 
-      // 2. Chama API de OCR com IA Vision
       const res = await fetch("/api/obras/ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -149,7 +148,6 @@ function RegistrarDespesaContent() {
         const ocr = resData.data;
         setOcrRaw(ocr);
 
-        // Preenchimento automático inteligente dos campos
         if (ocr.valor && Number(ocr.valor) > 0) {
           setValor(String(ocr.valor));
         }
@@ -160,14 +158,15 @@ function RegistrarDespesaContent() {
           setDescricao(ocr.descricao);
         }
         if (ocr.forma_pagamento) {
-          setFormaPagamento(ocr.forma_pagamento);
+          if (ocr.forma_pagamento.includes("cartao")) {
+            setFormaPagamento("cartao_credito");
+          } else {
+            setFormaPagamento("pix");
+          }
         }
 
-        // Trata fornecedor extraído pelo OCR
         if (ocr.fornecedor) {
           setSupplierName(ocr.fornecedor);
-
-          // Verifica se já existe fornecedor com nome similar
           const matched = suppliers.find(
             (s) =>
               s.name.toLowerCase().includes(ocr.fornecedor.toLowerCase()) ||
@@ -179,7 +178,6 @@ function RegistrarDespesaContent() {
           }
         }
 
-        // Tenta achar categoria similar
         if (ocr.categoria_sugerida) {
           const matchedCat = categories.find((c) =>
             c.name.toLowerCase().includes(ocr.categoria_sugerida.toLowerCase())
@@ -189,7 +187,7 @@ function RegistrarDespesaContent() {
           }
         }
 
-        setOcrSuccessMsg("✨ Dados da nota lidos com sucesso pela IA!");
+        setOcrSuccessMsg("✨ Dados lidos com sucesso pela IA!");
       }
     } catch (err: any) {
       console.error("Erro no processamento OCR:", err);
@@ -198,7 +196,7 @@ function RegistrarDespesaContent() {
     }
   }
 
-  // Criar novo fornecedor inline
+  // Criar novo fornecedor inline simplificado (apenas nome e categoria opcional)
   async function handleCreateSupplierInline(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedCompany || !newSupplierName.trim()) return;
@@ -210,10 +208,10 @@ function RegistrarDespesaContent() {
         .insert({
           company_id: selectedCompany.id,
           name: newSupplierName.trim(),
-          cnpj: newSupplierCnpj.trim() || null,
+          default_category_id: newSupplierCatId || null,
           is_active: true,
         })
-        .select("id, name, cnpj")
+        .select("id, name")
         .single();
 
       if (error) throw error;
@@ -222,9 +220,12 @@ function RegistrarDespesaContent() {
         setSuppliers((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
         setSelectedSupplierId(data.id);
         setSupplierName(data.name);
+        if (newSupplierCatId) {
+          setCategoriaId(newSupplierCatId);
+        }
         setShowSupplierModal(false);
         setNewSupplierName("");
-        setNewSupplierCnpj("");
+        setNewSupplierCatId("");
       }
     } catch (err: any) {
       alert(err.message || "Erro ao criar fornecedor.");
@@ -260,7 +261,6 @@ function RegistrarDespesaContent() {
     try {
       let uploadedPhotoUrl = null;
 
-      // 1. Upload do comprovante comprimido para o Storage
       if (compressedBlob) {
         const fileExt = "jpg";
         const fileName = `${selectedCompany.id}/${Date.now()}_${Math.random()
@@ -274,9 +274,7 @@ function RegistrarDespesaContent() {
             upsert: false,
           });
 
-        if (uploadError) {
-          console.warn("Aviso upload:", uploadError.message);
-        } else {
+        if (!uploadError) {
           const { data: publicUrlData } = supabase.storage
             .from("comprovantes_obras")
             .getPublicUrl(fileName);
@@ -284,8 +282,11 @@ function RegistrarDespesaContent() {
         }
       }
 
-      // 2. Salva a movimentação na tabela obra_transacoes
       const categoriaObj = categories.find((c) => c.id === categoriaId);
+      const formaFinal =
+        formaPagamento === "cartao_credito"
+          ? `Cartão de Crédito (${numParcelas === "13+" ? "13+ parcelas" : `${numParcelas}x`})`
+          : "PIX";
 
       const { error: insertError } = await supabase.from("obra_transacoes").insert({
         company_id: selectedCompany.id,
@@ -294,7 +295,7 @@ function RegistrarDespesaContent() {
         descricao: descricao.trim(),
         valor: valorNum,
         data_movimentacao: dataMovimentacao,
-        forma_pagamento: formaPagamento,
+        forma_pagamento: formaFinal,
         status_pagamento: statusPagamento,
         fornecedor_id: selectedSupplierId || null,
         fornecedor_nome: supplierName.trim() || null,
@@ -312,7 +313,6 @@ function RegistrarDespesaContent() {
         message: "Despesa registrada com sucesso na obra!",
       });
 
-      // Limpar campos para o próximo lançamento
       setTimeout(() => {
         setDescricao("");
         setValor("");
@@ -338,9 +338,10 @@ function RegistrarDespesaContent() {
   }
 
   const filteredSuppliers = suppliers.filter((s) =>
-    s.name.toLowerCase().includes(supplierSearch.toLowerCase()) ||
-    (s.cnpj && s.cnpj.includes(supplierSearch))
+    s.name.toLowerCase().includes(supplierSearch.toLowerCase())
   );
+
+  const parcelasOptions = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13+"];
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -359,20 +360,19 @@ function RegistrarDespesaContent() {
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Tire uma foto do cupom/recibo ou preencha os dados manualmente.
+            Lance compras de materiais, prestadores de serviço ou despesas da obra.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs sm:text-sm transition-all shadow-2xs"
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-bold text-xs sm:text-sm transition-all shadow-2xs"
         >
-          <span>📸</span> Tirar Foto / OCR
+          <span>📸</span> Anexar Comprovante
         </button>
       </div>
 
-      {/* Input de Câmera/Arquivo oculto */}
       <input
         ref={fileInputRef}
         type="file"
@@ -382,7 +382,6 @@ function RegistrarDespesaContent() {
         className="hidden"
       />
 
-      {/* Feedback Toast */}
       {feedback && (
         <div
           className={`p-4 rounded-2xl text-sm font-semibold flex items-center justify-between gap-3 shadow-xs ${
@@ -404,12 +403,11 @@ function RegistrarDespesaContent() {
         </div>
       )}
 
-      {/* Card da Foto & Status OCR */}
       {photoPreview && (
-        <div className="bg-white rounded-3xl p-4 border border-amber-200 shadow-xs space-y-3">
+        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-              <span>🖼️</span> Foto do Comprovante / Nota
+              <span>🖼️</span> Foto do Comprovante
             </span>
             <button
               type="button"
@@ -432,19 +430,19 @@ function RegistrarDespesaContent() {
             <img
               src={photoPreview}
               alt="Comprovante"
-              className="w-20 h-20 object-cover rounded-2xl border border-gray-200 shadow-2xs"
+              className="w-20 h-20 object-cover rounded-xl border border-gray-200"
             />
             <div className="flex-1 text-xs text-gray-600">
               {ocrLoading ? (
-                <div className="flex items-center gap-2 text-amber-700 font-semibold animate-pulse">
-                  <span className="animate-spin">🔄</span> Lendo dados da nota fiscal com IA...
+                <div className="flex items-center gap-2 text-gray-800 font-semibold animate-pulse">
+                  <span className="animate-spin">🔄</span> Lendo dados da nota com IA...
                 </div>
               ) : ocrSuccessMsg ? (
                 <div className="text-emerald-700 font-semibold bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
                   {ocrSuccessMsg}
                 </div>
               ) : (
-                <p>Foto anexada e pronta para envio.</p>
+                <p>Foto anexada com sucesso.</p>
               )}
             </div>
           </div>
@@ -452,8 +450,7 @@ function RegistrarDespesaContent() {
       )}
 
       {/* Formulário Principal */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-5 sm:p-7 border border-gray-200/80 shadow-xs space-y-5">
-        {/* Seleção da Obra */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-5 sm:p-7 border border-gray-200 shadow-2xs space-y-5">
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
             Obra de Destino <span className="text-red-500">*</span>
@@ -462,7 +459,7 @@ function RegistrarDespesaContent() {
             value={obraId}
             onChange={(e) => setObraId(e.target.value)}
             required
-            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium bg-white"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium bg-white"
           >
             <option value="">Selecione a Obra...</option>
             {obras.map((o) => (
@@ -473,7 +470,6 @@ function RegistrarDespesaContent() {
           </select>
         </div>
 
-        {/* Linha: Valor e Data */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
@@ -491,7 +487,7 @@ function RegistrarDespesaContent() {
                 onChange={(e) => setValor(e.target.value)}
                 placeholder="0,00"
                 required
-                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base font-black text-gray-900"
+                className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-base font-black text-gray-900"
               />
             </div>
           </div>
@@ -505,12 +501,11 @@ function RegistrarDespesaContent() {
               value={dataMovimentacao}
               onChange={(e) => setDataMovimentacao(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium"
             />
           </div>
         </div>
 
-        {/* Descrição do Gasto */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
             Descrição do Item / Serviço <span className="text-red-500">*</span>
@@ -521,11 +516,11 @@ function RegistrarDespesaContent() {
             onChange={(e) => setDescricao(e.target.value)}
             placeholder="Ex: 50 sacos de cimento, Areia lavada, Diária encanador"
             required
-            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium"
           />
         </div>
 
-        {/* Fornecedor com Modal de Seleção/Cadastro Rápido */}
+        {/* Fornecedor com Modal Simplificado */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
             Fornecedor / Loja
@@ -539,7 +534,7 @@ function RegistrarDespesaContent() {
               <span className={supplierName ? "text-gray-900 font-bold" : "text-gray-400"}>
                 {supplierName ? `🏢 ${supplierName}` : "Selecionar ou Cadastrar Fornecedor..."}
               </span>
-              <span className="text-xs text-gray-400">Buscar 🔍</span>
+              <span className="text-xs text-gray-500 font-bold">Buscar 🔍</span>
             </button>
 
             {supplierName && (
@@ -557,89 +552,109 @@ function RegistrarDespesaContent() {
           </div>
         </div>
 
-        {/* Linha: Categoria e Forma de Pagamento */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-              Categoria do Gasto
-            </label>
-            <select
-              value={categoriaId}
-              onChange={(e) => setCategoriaId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium bg-white"
-            >
-              <option value="">Selecione a Categoria...</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-              Forma de Pagamento
-            </label>
-            <select
-              value={formaPagamento}
-              onChange={(e) => setFormaPagamento(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium bg-white"
-            >
-              <option value="pix">PIX</option>
-              <option value="boleto">Boleto Bancário</option>
-              <option value="cartao_credito">Cartão de Crédito</option>
-              <option value="cartao_debito">Cartão de Débito</option>
-              <option value="transferencia">Transferência Bancária</option>
-              <option value="dinheiro">Dinheiro</option>
-              <option value="cheque">Cheque</option>
-              <option value="outro">Outro</option>
-            </select>
-          </div>
+        {/* Categoria de Custo */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+            Categoria do Custo
+          </label>
+          <select
+            value={categoriaId}
+            onChange={(e) => setCategoriaId(e.target.value)}
+            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium bg-white"
+          >
+            <option value="">Selecione a Categoria...</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Linha: Status do Pagamento e Botão Foto */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-              Status do Pagamento
-            </label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setStatusPagamento("pago")}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
-                  statusPagamento === "pago"
-                    ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
-                    : "bg-gray-50 text-gray-600 border-gray-200"
-                }`}
-              >
-                ✓ Já Pago
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatusPagamento("pendente")}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all ${
-                  statusPagamento === "pendente"
-                    ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
-                    : "bg-gray-50 text-gray-600 border-gray-200"
-                }`}
-              >
-                ⏳ A Pagar (Pendente)
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-              Foto do Comprovante
-            </label>
+        {/* Forma de Pagamento Simplificada (PIX ou Cartão de Crédito) */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+            Forma de Pagamento
+          </label>
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full py-2 px-3 rounded-xl border border-dashed border-amber-400 bg-amber-50/50 hover:bg-amber-50 text-amber-900 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+              onClick={() => setFormaPagamento("pix")}
+              className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-2 ${
+                formaPagamento === "pix"
+                  ? "bg-[#2C1810] text-white border-[#2C1810] shadow-xs"
+                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+              }`}
             >
-              <span>📷</span> {photoFile ? "Substituir Foto" : "Anexar Comprovante / Foto"}
+              <span>⚡</span> PIX (À Vista)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFormaPagamento("cartao_credito")}
+              className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center justify-center gap-2 ${
+                formaPagamento === "cartao_credito"
+                  ? "bg-[#2C1810] text-white border-[#2C1810] shadow-xs"
+                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+              }`}
+            >
+              <span>💳</span> Cartão de Crédito
+            </button>
+          </div>
+
+          {/* Seletor de Parcelas ao escolher Cartão de Crédito */}
+          {formaPagamento === "cartao_credito" && (
+            <div className="mt-3 p-3.5 bg-gray-50 rounded-2xl border border-gray-200 space-y-2 animate-in fade-in duration-150">
+              <span className="text-xs font-bold text-gray-700 block">
+                Quantidade de Parcelas:
+              </span>
+              <div className="grid grid-cols-7 sm:grid-cols-13 gap-1.5">
+                {parcelasOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setNumParcelas(opt)}
+                    className={`py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                      numParcelas === opt
+                        ? "bg-[#2C1810] text-white border-[#2C1810]"
+                        : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"
+                    }`}
+                  >
+                    {opt === "13+" ? "13+" : `${opt}x`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Linha: Status do Pagamento */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+            Status do Pagamento
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusPagamento("pago")}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                statusPagamento === "pago"
+                  ? "bg-emerald-700 text-white border-emerald-700 shadow-2xs"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+            >
+              ✓ Já Pago
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusPagamento("pendente")}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                statusPagamento === "pendente"
+                  ? "bg-amber-700 text-white border-amber-700 shadow-2xs"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+            >
+              ⏳ A Pagar (Pendente)
             </button>
           </div>
         </div>
@@ -654,7 +669,7 @@ function RegistrarDespesaContent() {
             value={observacoes}
             onChange={(e) => setObservacoes(e.target.value)}
             placeholder="Ex: Entregue no bloco B, nota fiscal número 4920"
-            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-sm font-medium resize-none"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#2C1810] focus:border-[#2C1810] text-sm font-medium resize-none"
           />
         </div>
 
@@ -662,13 +677,13 @@ function RegistrarDespesaContent() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full py-3.5 px-4 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-sm sm:text-base shadow-md shadow-amber-600/20 active:scale-[0.99] transition-all disabled:opacity-50"
+          className="w-full py-3.5 px-4 rounded-2xl bg-[#2C1810] hover:bg-black text-white font-black text-sm sm:text-base shadow-xs active:scale-[0.99] transition-all disabled:opacity-50"
         >
           {submitting ? "Salvando Despesa..." : "✓ Salvar Despesa na Obra"}
         </button>
       </form>
 
-      {/* Modal de Busca / Cadastro Rápido de Fornecedor */}
+      {/* Modal Simplificado de Busca / Cadastro de Fornecedor */}
       {showSupplierModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
@@ -690,7 +705,7 @@ function RegistrarDespesaContent() {
               type="text"
               value={supplierSearch}
               onChange={(e) => setSupplierSearch(e.target.value)}
-              placeholder="Buscar por nome ou CNPJ..."
+              placeholder="Buscar por nome do fornecedor..."
               className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium"
             />
 
@@ -706,47 +721,49 @@ function RegistrarDespesaContent() {
                       setSupplierName(s.name);
                       setShowSupplierModal(false);
                     }}
-                    className="w-full text-left p-2.5 hover:bg-amber-50 rounded-xl flex items-center justify-between transition-colors"
+                    className="w-full text-left p-2.5 hover:bg-gray-50 rounded-xl flex items-center justify-between transition-colors"
                   >
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">{s.name}</div>
-                      {s.cnpj && <div className="text-[11px] text-gray-500">{s.cnpj}</div>}
-                    </div>
-                    <span className="text-xs text-amber-700 font-bold">Selecionar →</span>
+                    <div className="text-sm font-bold text-gray-900">{s.name}</div>
+                    <span className="text-xs text-gray-500 font-bold">Selecionar →</span>
                   </button>
                 ))
               ) : (
                 <div className="p-3 text-center text-xs text-gray-500">
-                  Nenhum fornecedor encontrado com este termo.
+                  Nenhum fornecedor encontrado.
                 </div>
               )}
             </div>
 
-            {/* Cadastro Rápido Inline de Novo Fornecedor */}
-            <div className="pt-3 border-t border-gray-200">
-              <span className="text-xs font-bold text-gray-700 block mb-2">
-                + Novo Fornecedor Rápido
+            {/* Cadastro Rápido Simplificado (Apenas Nome e Categoria) */}
+            <div className="pt-3 border-t border-gray-200 space-y-3">
+              <span className="text-xs font-bold text-gray-800 block">
+                + Cadastrar Novo Fornecedor
               </span>
               <div className="space-y-2">
                 <input
                   type="text"
                   value={newSupplierName}
                   onChange={(e) => setNewSupplierName(e.target.value)}
-                  placeholder="Nome do Novo Fornecedor"
+                  placeholder="Nome da Loja / Fornecedor"
                   className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium"
                 />
-                <input
-                  type="text"
-                  value={newSupplierCnpj}
-                  onChange={(e) => setNewSupplierCnpj(e.target.value)}
-                  placeholder="CNPJ (opcional)"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium"
-                />
+                <select
+                  value={newSupplierCatId}
+                  onChange={(e) => setNewSupplierCatId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium bg-white"
+                >
+                  <option value="">Categoria Padrão (Opcional)...</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   disabled={creatingSupplier || !newSupplierName.trim()}
                   onClick={handleCreateSupplierInline}
-                  className="w-full py-2 px-3 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs transition-all disabled:opacity-50"
+                  className="w-full py-2.5 px-3 rounded-xl bg-[#2C1810] hover:bg-black text-white font-bold text-xs transition-all disabled:opacity-50"
                 >
                   {creatingSupplier ? "Cadastrando..." : "Cadastrar e Selecionar"}
                 </button>

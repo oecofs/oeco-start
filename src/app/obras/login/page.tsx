@@ -40,16 +40,16 @@ export default function ObrasLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-950 via-gray-900 to-black flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 border border-amber-900/20">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-white rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 border border-gray-200">
         {/* Logo & Marca */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-600 to-amber-800 text-white flex items-center justify-center text-3xl mx-auto shadow-lg shadow-amber-600/30">
+          <div className="w-12 h-12 rounded-xl bg-[#2C1810] text-white flex items-center justify-center text-2xl mx-auto shadow-xs">
             🏗️
           </div>
           <div>
             <div className="flex items-center justify-center gap-1.5">
-              <span className="text-2xl font-black tracking-tight text-gray-900">Óeco</span>
+              <span className="text-2xl font-black tracking-tight text-gray-900">Oeco</span>
               <span className="px-2 py-0.5 text-xs font-black uppercase tracking-wider rounded bg-amber-100 text-amber-900 border border-amber-200">
                 Obras
               </span>
