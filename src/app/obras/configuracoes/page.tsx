@@ -9,6 +9,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import CategoriesManager from "@/components/CategoriesManager";
 import SuppliersManager from "@/components/SuppliersManager";
 import TeamManager from "@/components/TeamManager";
+import ObrasBackButton from "@/components/obras/ObrasBackButton";
 
 type ObrasConfigTab = "categories" | "suppliers" | "team";
 
@@ -52,13 +53,8 @@ export default function ObrasConfiguracoesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/obras"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              ←
-            </Link>
+          <div className="flex items-center gap-3">
+            <ObrasBackButton />
             <h1 className="text-xl sm:text-2xl font-black text-gray-900">
               Configurações — Oeco Obras
             </h1>

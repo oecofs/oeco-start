@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { compressImage } from "@/lib/imageCompression";
+import ObrasBackButton from "@/components/obras/ObrasBackButton";
 
 interface ObraOption {
   id: string;
@@ -162,13 +163,8 @@ function RegistrarReceitaContent() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/obras/registrar"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              ←
-            </Link>
+          <div className="flex items-center gap-3">
+            <ObrasBackButton href="/obras/registrar" />
             <h1 className="text-xl sm:text-2xl font-black text-gray-900">
               Registrar Receita da Obra
             </h1>

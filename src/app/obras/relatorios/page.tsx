@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import ObrasBackButton from "@/components/obras/ObrasBackButton";
 
 interface ObraSummary {
   id: string;
@@ -194,13 +195,8 @@ function ObrasRelatoriosContent() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/obras"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              ←
-            </Link>
+          <div className="flex items-center gap-3">
+            <ObrasBackButton href="/obras" />
             <h1 className="text-xl sm:text-2xl font-black text-gray-900">
               Relatórios & KPIs de Obras
             </h1>

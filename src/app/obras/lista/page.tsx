@@ -5,6 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 
+import ObrasBackButton from "@/components/obras/ObrasBackButton";
+
 interface ObraItem {
   id: string;
   nome: string;
@@ -127,13 +129,8 @@ export default function ListaObrasPage() {
       {/* Header com Ação */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/obras"
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              ←
-            </Link>
+          <div className="flex items-center gap-3">
+            <ObrasBackButton />
             <h1 className="text-xl sm:text-2xl font-black text-gray-900">
               Obras & Projetos
             </h1>
@@ -347,7 +344,7 @@ export default function ListaObrasPage() {
                     href={`/obras/registrar/despesa?obraId=${obra.id}`}
                     className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition-colors"
                   >
-                    <span>💸</span> + Despesa com Foto
+                    <span>💸</span> + Nova Despesa
                   </Link>
 
                   <Link

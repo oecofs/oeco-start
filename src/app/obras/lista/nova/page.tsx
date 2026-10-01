@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
+import ObrasBackButton from "@/components/obras/ObrasBackButton";
 
 export default function NovaObraPage() {
   const router = useRouter();
@@ -70,13 +71,8 @@ export default function NovaObraPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-2">
-        <Link
-          href="/obras/lista"
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-        >
-          ←
-        </Link>
+      <div className="flex items-center gap-3">
+        <ObrasBackButton href="/obras/lista" />
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-gray-900">
             Cadastrar Nova Obra
