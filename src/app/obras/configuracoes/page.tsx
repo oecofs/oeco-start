@@ -56,7 +56,7 @@ export default function ObrasConfiguracoesPage() {
           <div className="flex items-center gap-3">
             <ObrasBackButton />
             <h1 className="text-xl sm:text-2xl font-black text-gray-900">
-              Configurações — Oeco Obras
+              Configurações
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
@@ -79,34 +79,6 @@ export default function ObrasConfiguracoesPage() {
       {seedSuccess && (
         <div className="p-4 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-sm font-semibold">
           ✓ Categorias de Construção Civil geradas com sucesso!
-        </div>
-      )}
-
-      {/* Info do Perfil da Empresa Ativa */}
-      {selectedCompany && (
-        <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-2xs flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-700">Empresa:</span>
-            <span className="font-black text-gray-900">{selectedCompany.name}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 font-medium">Perfil de Acesso:</span>
-            <span
-              className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${
-                selectedCompany.segment === "obras_only"
-                  ? "bg-amber-100 text-amber-900 border-amber-200"
-                  : selectedCompany.segment === "obras_financial"
-                  ? "bg-blue-100 text-blue-900 border-blue-200"
-                  : "bg-slate-100 text-slate-800 border-slate-200"
-              }`}
-            >
-              {selectedCompany.segment === "obras_only"
-                ? "🏗️ Obras Only (Exclusivo)"
-                : selectedCompany.segment === "obras_financial"
-                ? "🏗️💼 Obras + Financeiro Integrado"
-                : "🏢 Financeiro Geral"}
-            </span>
-          </div>
         </div>
       )}
 
