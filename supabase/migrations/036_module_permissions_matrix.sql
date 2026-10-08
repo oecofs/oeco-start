@@ -223,12 +223,12 @@ BEGIN
     m.mod_key::TEXT,
     COALESCE(cm.is_enabled, TRUE) AS is_enabled_for_company,
     CASE 
-      WHEN v_is_master THEN TRUE
+      WHEN v_is_master THEN COALESCE(cm.is_enabled, TRUE)
       WHEN v_caller_role = 'admin' THEN COALESCE(cm.is_enabled, TRUE)
       ELSE (COALESCE(cm.is_enabled, TRUE) AND COALESCE(cup.can_access, TRUE))
     END AS can_access,
     CASE 
-      WHEN v_is_master THEN TRUE
+      WHEN v_is_master THEN COALESCE(cm.is_enabled, TRUE)
       WHEN v_caller_role = 'admin' THEN COALESCE(cm.is_enabled, TRUE)
       WHEN v_caller_role = 'viewer' THEN FALSE
       ELSE (COALESCE(cm.is_enabled, TRUE) AND COALESCE(cup.can_edit, TRUE))

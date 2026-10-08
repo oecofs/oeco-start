@@ -116,84 +116,69 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (isMasterUser) {
-        // Master tem acesso irrestrito a todos os 8 módulos
-        const allKeys = SYSTEM_MODULES.map((m) => m.key);
-        setAccessibleModules(allKeys);
-        const map: Record<SystemModuleKey, boolean> = {} as any;
-        allKeys.forEach((k) => {
-          map[k] = true;
-        });
-        setCompanyEnabledModules(map);
-        setUserEditPermissions(map);
-        return;
-      }
-
       try {
-        const { data, error } = await supabase.rpc("get_user_accessible_modules", {
-          p_company_id: companyId,
-        });
-
-        if (!error && data && Array.isArray(data) && data.length > 0) {
-          const enabledMap: Record<SystemModuleKey, boolean> = {} as any;
-          const accessibleList: SystemModuleKey[] = [];
-          const editMap: Record<SystemModuleKey, boolean> = {} as any;
-
-          data.forEach((row: any) => {
-            const k = row.module_key as SystemModuleKey;
-            enabledMap[k] = Boolean(row.is_enabled_for_company);
-            if (row.can_access) {
-              accessibleList.push(k);
-            }
-            editMap[k] = Boolean(row.can_edit);
-          });
-
-          setCompanyEnabledModules(enabledMap);
-          setAccessibleModules(accessibleList);
-          setUserEditPermissions(editMap);
-          return;
-        }
-
-        // Fallback para consultas diretas se a RPC ainda não tiver sido criada
+        // 1. Busca os módulos habilitados da empresa diretamente da tabela company_modules
         const { data: compMods } = await supabase
           .from("company_modules")
           .select("module_key, is_enabled")
           .eq("company_id", companyId);
 
+        let enabledMap: Record<SystemModuleKey, boolean> = {
+          transactions: true,
+          payables: true,
+          receivables: true,
+          cards: false,
+          obras: false,
+          legal_cases: false,
+          reports: true,
+          kpis: true,
+        };
+
         if (compMods && compMods.length > 0) {
-          const enabledMap: Record<SystemModuleKey, boolean> = {} as any;
-          const accessibleList: SystemModuleKey[] = [];
           compMods.forEach((cm: any) => {
             const k = cm.module_key as SystemModuleKey;
             enabledMap[k] = Boolean(cm.is_enabled);
-            if (cm.is_enabled) accessibleList.push(k);
           });
-          setCompanyEnabledModules(enabledMap);
-          setAccessibleModules(accessibleList);
+        } else if (currentSegment) {
+          // Fallback inicial baseado no segmento
+          enabledMap.cards = true;
+          enabledMap.obras = currentSegment === "obras_only" || currentSegment === "obras_financial";
+          enabledMap.legal_cases = currentSegment === "legal";
+        }
+
+        setCompanyEnabledModules(enabledMap);
+
+        // 2. Se for Master, tem acesso exatamente aos módulos que a empresa contratou/habilitou
+        if (isMasterUser) {
+          const activeKeys = SYSTEM_MODULES.filter((m) => enabledMap[m.key]).map((m) => m.key);
+          setAccessibleModules(activeKeys);
+          setUserEditPermissions(enabledMap);
           return;
         }
 
-        // Fallback baseado no segmento da empresa
-        const defaultList: SystemModuleKey[] = [
-          "transactions",
-          "payables",
-          "receivables",
-          "cards",
-          "reports",
-          "kpis",
-        ];
-        if (currentSegment === "obras_only" || currentSegment === "obras_financial") {
-          defaultList.push("obras");
-        }
-        if (currentSegment === "legal") {
-          defaultList.push("legal_cases");
-        }
-        const defaultMap: Record<SystemModuleKey, boolean> = {} as any;
-        defaultList.forEach((k) => {
-          defaultMap[k] = true;
+        // 3. Para usuários comuns, consulta permissões individuais
+        const { data: userPerms } = await supabase
+          .from("company_user_module_permissions")
+          .select("module_key, can_access, can_edit")
+          .eq("company_id", companyId);
+
+        const accessibleList: SystemModuleKey[] = [];
+        const editMap: Record<SystemModuleKey, boolean> = {} as any;
+
+        SYSTEM_MODULES.forEach((m) => {
+          if (enabledMap[m.key]) {
+            const perm = (userPerms || []).find((p: any) => p.module_key === m.key);
+            const canAcc = perm ? Boolean(perm.can_access) : true;
+            const canEd = perm ? Boolean(perm.can_edit) : true;
+            if (canAcc) accessibleList.push(m.key);
+            editMap[m.key] = canEd;
+          } else {
+            editMap[m.key] = false;
+          }
         });
-        setCompanyEnabledModules(defaultMap);
-        setAccessibleModules(defaultList);
+
+        setAccessibleModules(accessibleList);
+        setUserEditPermissions(editMap);
       } catch (err) {
         console.error("Erro ao carregar permissões de módulos:", err);
       }
@@ -343,19 +328,20 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
   const isModuleAccessible = useCallback(
     (key: SystemModuleKey): boolean => {
-      if (isMaster) return true;
+      // O módulo só pode ser acessado se estiver explicitamente habilitado para a empresa ativa
+      if (!companyEnabledModules[key]) return false;
       return accessibleModules.includes(key);
     },
-    [isMaster, accessibleModules]
+    [companyEnabledModules, accessibleModules]
   );
 
   const isModuleEditable = useCallback(
     (key: SystemModuleKey): boolean => {
-      if (isMaster) return true;
+      if (!companyEnabledModules[key]) return false;
       if (userRole === "viewer") return false;
       return Boolean(userEditPermissions[key] && accessibleModules.includes(key));
     },
-    [isMaster, userRole, userEditPermissions, accessibleModules]
+    [userRole, companyEnabledModules, userEditPermissions, accessibleModules]
   );
 
   const createCompany = async (
