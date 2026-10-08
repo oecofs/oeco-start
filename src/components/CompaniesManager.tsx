@@ -26,8 +26,16 @@ const DEFAULT_MODULE_MAP: Record<SystemModuleKey, boolean> = {
 
 export default function CompaniesManager() {
   const supabase = createClient();
-  const { companies, selectedCompany, isMaster, selectCompany, refreshCompanies, createCompany, refreshModules } =
-    useCompany();
+  const {
+    companies,
+    selectedCompany,
+    isMaster,
+    selectCompany,
+    refreshCompanies,
+    createCompany,
+    refreshModules,
+    impersonateUser,
+  } = useCompany();
 
   // Estados de Busca e Filtro
   const [searchQuery, setSearchQuery] = useState("");
@@ -747,12 +755,32 @@ export default function CompaniesManager() {
                                 {m.role}
                               </span>
                             </div>
-                            <button
-                              onClick={() => handleRemoveMember(comp.id, m.user_id, m.email)}
-                              className="text-red-600 hover:text-red-800 text-[11px] font-semibold cursor-pointer"
-                            >
-                              Remover
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {m.role !== "master" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    selectCompany(comp.id);
+                                    impersonateUser({
+                                      userId: m.user_id,
+                                      email: m.email,
+                                      role: m.role as any,
+                                    });
+                                  }}
+                                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                                  title={`Personificar e visualizar o sistema exatamente como ${m.email}`}
+                                >
+                                  <span>👁️</span>
+                                  <span>Ver como Usuário</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleRemoveMember(comp.id, m.user_id, m.email)}
+                                className="text-red-600 hover:text-red-800 text-[11px] font-semibold cursor-pointer"
+                              >
+                                Remover
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>

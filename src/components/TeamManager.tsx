@@ -42,7 +42,7 @@ const ROLE_DEFINITIONS = [
 
 export default function TeamManager() {
   const supabase = createClient();
-  const { selectedCompany, isMaster } = useCompany();
+  const { selectedCompany, isMaster, realIsMaster, impersonateUser } = useCompany();
 
   const [members, setMembers] = useState<CompanyMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -503,13 +503,33 @@ export default function TeamManager() {
                       )}
 
                       {!isMasterMember && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMember(member)}
-                          className="text-red-600 hover:text-red-800 text-xs font-semibold px-2.5 py-1.5 rounded-xl hover:bg-red-50 transition-colors cursor-pointer"
-                        >
-                          Revogar Acesso
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {realIsMaster && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                impersonateUser({
+                                  userId: member.user_id,
+                                  email: member.email,
+                                  role: member.role as any,
+                                })
+                              }
+                              className="text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                              title={`Personificar e visualizar o sistema exatamente como ${member.email}`}
+                            >
+                              <span>👁️</span>
+                              <span>Ver como Usuário</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(member)}
+                            className="text-red-600 hover:text-red-800 text-xs font-semibold px-2.5 py-1.5 rounded-xl hover:bg-red-50 transition-colors cursor-pointer"
+                          >
+                            Revogar Acesso
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

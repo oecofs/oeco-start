@@ -11,7 +11,8 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const router = useRouter();
   const wl = getWhiteLabelConfig();
-  const { selectedCompany, isModuleAccessible, isMaster } = useCompany();
+  const { selectedCompany, isModuleAccessible, isMaster, impersonatedUser, stopImpersonating } =
+    useCompany();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isObrasOnly = selectedCompany?.segment === "obras_only";
@@ -58,7 +59,32 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* BANNER DE PERSONIFICAÇÃO DE USUÁRIO (IMPERSONATE) */}
+      {impersonatedUser && (
+        <div className="sticky top-0 z-50 bg-gradient-to-r from-amber-600 via-amber-700 to-amber-800 text-white px-4 py-2.5 shadow-md flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2 font-medium">
+            <span className="text-base animate-pulse">👁️</span>
+            <span>
+              <strong>Modo de Visualização Ativo:</strong> Você está vendo o sistema como{" "}
+              <span className="font-bold underline decoration-white/50">{impersonatedUser.email}</span> (
+              {impersonatedUser.role === "admin"
+                ? "Administrador"
+                : impersonatedUser.role === "operator"
+                ? "Operador Financeiro"
+                : "Visualizador (Leitura)"}
+              )
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={stopImpersonating}
+            className="px-3.5 py-1.5 bg-white text-amber-900 hover:bg-amber-50 font-bold rounded-xl shadow-xs transition-all text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+          >
+            <span>✕</span> Sair da Visualização (Voltar para Master)
+          </button>
+        </div>
+      )}
       {/* TOP BAR NO MOBILE COM BOTÃO HAMBÚRGUER */}
       <header className="md:hidden sticky top-0 left-0 right-0 bg-white border-b border-gray-200 px-3 py-2.5 flex items-center justify-between gap-2.5 z-40 print:hidden shadow-xs">
         <div className="flex items-center gap-2">

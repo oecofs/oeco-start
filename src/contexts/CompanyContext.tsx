@@ -16,11 +16,19 @@ export type Company = {
   segment?: "general" | "legal" | "obras_only" | "obras_financial";
 };
 
+export type ImpersonatedUser = {
+  userId: string;
+  email: string;
+  role: "admin" | "operator" | "viewer";
+};
+
 type CompanyContextType = {
   companies: Company[];
   selectedCompany: Company | null;
   isMaster: boolean;
+  realIsMaster: boolean;
   userRole: "master" | "admin" | "operator" | "viewer" | null;
+  impersonatedUser: ImpersonatedUser | null;
   loading: boolean;
   accessibleModules: SystemModuleKey[];
   companyEnabledModules: Record<SystemModuleKey, boolean>;
@@ -29,6 +37,8 @@ type CompanyContextType = {
   selectCompany: (companyId: string) => void;
   refreshCompanies: () => Promise<void>;
   refreshModules: () => Promise<void>;
+  impersonateUser: (user: ImpersonatedUser) => void;
+  stopImpersonating: () => void;
   createCompany: (
     name: string,
     cnpj?: string,
@@ -81,9 +91,14 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [isMaster, setIsMaster] = useState(false);
-  const [userRole, setUserRole] = useState<"master" | "admin" | "operator" | "viewer" | null>(null);
+  const [realIsMaster, setRealIsMaster] = useState(false);
+  const [baseUserRole, setBaseUserRole] = useState<"master" | "admin" | "operator" | "viewer" | null>(null);
+  const [impersonatedUser, setImpersonatedUser] = useState<ImpersonatedUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Estados efetivos para a UI
+  const isMaster = realIsMaster && !impersonatedUser;
+  const userRole = impersonatedUser ? impersonatedUser.role : baseUserRole;
 
   // Estados de Módulos
   const [accessibleModules, setAccessibleModules] = useState<SystemModuleKey[]>([]);
@@ -110,7 +125,13 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
   // Carregar permissões e módulos da empresa ativa
   const fetchModulesData = useCallback(
-    async (companyId?: string, isMasterUser: boolean = false, currentSegment?: string) => {
+    async (
+      companyId?: string,
+      isMasterUser: boolean = false,
+      currentSegment?: string,
+      targetUserId?: string,
+      targetRole?: string
+    ) => {
       if (!companyId) {
         setAccessibleModules([]);
         return;
@@ -148,19 +169,25 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
         setCompanyEnabledModules(enabledMap);
 
-        // 2. Se for Master, tem acesso exatamente aos módulos que a empresa contratou/habilitou
-        if (isMasterUser) {
+        // 2. Se for Master ou Admin, tem acesso a todos os módulos habilitados da empresa
+        if (isMasterUser || targetRole === "admin") {
           const activeKeys = SYSTEM_MODULES.filter((m) => enabledMap[m.key]).map((m) => m.key);
           setAccessibleModules(activeKeys);
           setUserEditPermissions(enabledMap);
           return;
         }
 
-        // 3. Para usuários comuns, consulta permissões individuais
-        const { data: userPerms } = await supabase
+        // 3. Para usuários comuns ou impersonados
+        let query = supabase
           .from("company_user_module_permissions")
           .select("module_key, can_access, can_edit")
           .eq("company_id", companyId);
+
+        if (targetUserId) {
+          query = query.eq("user_id", targetUserId);
+        }
+
+        const { data: userPerms } = await query;
 
         const accessibleList: SystemModuleKey[] = [];
         const editMap: Record<SystemModuleKey, boolean> = {} as any;
@@ -169,7 +196,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
           if (enabledMap[m.key]) {
             const perm = (userPerms || []).find((p: any) => p.module_key === m.key);
             const canAcc = perm ? Boolean(perm.can_access) : true;
-            const canEd = perm ? Boolean(perm.can_edit) : true;
+            const canEd = targetRole === "viewer" ? false : perm ? Boolean(perm.can_edit) : true;
             if (canAcc) accessibleList.push(m.key);
             editMap[m.key] = canEd;
           } else {
@@ -193,8 +220,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setIsMaster(false);
-        setUserRole(null);
+        setRealIsMaster(false);
+        setBaseUserRole(null);
         setCompanies([]);
         setSelectedCompany(null);
         setLoading(false);
@@ -212,13 +239,12 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       }
 
       const hasMasterRole = (userComps || []).some((uc) => uc.role === "master");
-      setIsMaster(hasMasterRole);
+      setRealIsMaster(hasMasterRole);
 
       let availableCompanies: Company[] = [];
 
       if (hasMasterRole) {
-        // Usuário Master Global: pode ver e gerenciar todas as empresas
-        setUserRole("master");
+        setBaseUserRole("master");
         const { data: allComps } = await supabase
           .from("companies")
           .select("*")
@@ -229,9 +255,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
           role: "master",
         }));
       } else if (userComps && userComps.length > 0) {
-        // Usuário comum (Admin, Operador ou Visualizador de empresa específica)
         const primaryRole = (userComps[0].role as any) || "admin";
-        setUserRole(primaryRole);
+        setBaseUserRole(primaryRole);
 
         const compIds = userComps.map((uc) => uc.company_id);
         const { data: userCompsList } = await supabase
@@ -248,9 +273,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
           };
         });
       } else {
-        // Usuário sem vínculos cadastrados: NUNCA conceder privilégio Master!
-        setIsMaster(false);
-        setUserRole("viewer");
+        setRealIsMaster(false);
+        setBaseUserRole("viewer");
         availableCompanies = [];
       }
 
@@ -297,8 +321,9 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
         fetchCompaniesData();
       } else if (event === "SIGNED_OUT") {
-        setIsMaster(false);
-        setUserRole(null);
+        setRealIsMaster(false);
+        setBaseUserRole(null);
+        setImpersonatedUser(null);
         setCompanies([]);
         setSelectedCompany(null);
       }
@@ -309,6 +334,27 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchCompaniesData, supabase]);
 
+  const impersonateUser = useCallback(
+    (target: ImpersonatedUser) => {
+      if (!realIsMaster) {
+        console.warn("Apenas usuários master podem impersonar outros usuários.");
+        return;
+      }
+      setImpersonatedUser(target);
+      if (selectedCompany) {
+        fetchModulesData(selectedCompany.id, false, selectedCompany.segment, target.userId, target.role);
+      }
+    },
+    [realIsMaster, selectedCompany, fetchModulesData]
+  );
+
+  const stopImpersonating = useCallback(() => {
+    setImpersonatedUser(null);
+    if (selectedCompany) {
+      fetchModulesData(selectedCompany.id, realIsMaster, selectedCompany.segment);
+    }
+  }, [selectedCompany, realIsMaster, fetchModulesData]);
+
   const selectCompany = (companyId: string) => {
     const target = companies.find((c) => c.id === companyId);
     if (target) {
@@ -316,13 +362,25 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         localStorage.setItem(LOCAL_STORAGE_KEY, target.id);
       }
-      fetchModulesData(target.id, isMaster, target.segment);
+      fetchModulesData(
+        target.id,
+        isMaster,
+        target.segment,
+        impersonatedUser?.userId,
+        impersonatedUser?.role
+      );
     }
   };
 
   const refreshModules = async () => {
     if (selectedCompany) {
-      await fetchModulesData(selectedCompany.id, isMaster, selectedCompany.segment);
+      await fetchModulesData(
+        selectedCompany.id,
+        isMaster,
+        selectedCompany.segment,
+        impersonatedUser?.userId,
+        impersonatedUser?.role
+      );
     }
   };
 
@@ -354,7 +412,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user || !isMaster) return null;
+      if (!user || !realIsMaster) return null;
 
       // 1. Cria a empresa com o segmento/perfil configurado
       const { data: newCompany, error: compError } = await supabase
@@ -461,7 +519,9 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         companies,
         selectedCompany,
         isMaster,
+        realIsMaster,
         userRole,
+        impersonatedUser,
         loading,
         accessibleModules,
         companyEnabledModules,
@@ -470,6 +530,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         selectCompany,
         refreshCompanies,
         refreshModules,
+        impersonateUser,
+        stopImpersonating,
         createCompany,
       }}
     >
