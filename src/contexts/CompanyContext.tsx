@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+import { SystemModuleKey, SYSTEM_MODULES } from "@/lib/modules";
+
 export type Company = {
   id: string;
   name: string;
@@ -20,8 +22,13 @@ type CompanyContextType = {
   isMaster: boolean;
   userRole: "master" | "admin" | "operator" | "viewer" | null;
   loading: boolean;
+  accessibleModules: SystemModuleKey[];
+  companyEnabledModules: Record<SystemModuleKey, boolean>;
+  isModuleAccessible: (key: SystemModuleKey) => boolean;
+  isModuleEditable: (key: SystemModuleKey) => boolean;
   selectCompany: (companyId: string) => void;
   refreshCompanies: () => Promise<void>;
+  refreshModules: () => Promise<void>;
   createCompany: (
     name: string,
     cnpj?: string,
@@ -77,6 +84,122 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const [isMaster, setIsMaster] = useState(false);
   const [userRole, setUserRole] = useState<"master" | "admin" | "operator" | "viewer" | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Estados de Módulos
+  const [accessibleModules, setAccessibleModules] = useState<SystemModuleKey[]>([]);
+  const [companyEnabledModules, setCompanyEnabledModules] = useState<Record<SystemModuleKey, boolean>>({
+    transactions: true,
+    payables: true,
+    receivables: true,
+    cards: true,
+    obras: false,
+    legal_cases: false,
+    reports: true,
+    kpis: true,
+  });
+  const [userEditPermissions, setUserEditPermissions] = useState<Record<SystemModuleKey, boolean>>({
+    transactions: true,
+    payables: true,
+    receivables: true,
+    cards: true,
+    obras: true,
+    legal_cases: true,
+    reports: true,
+    kpis: true,
+  });
+
+  // Carregar permissões e módulos da empresa ativa
+  const fetchModulesData = useCallback(
+    async (companyId?: string, isMasterUser: boolean = false, currentSegment?: string) => {
+      if (!companyId) {
+        setAccessibleModules([]);
+        return;
+      }
+
+      if (isMasterUser) {
+        // Master tem acesso irrestrito a todos os 8 módulos
+        const allKeys = SYSTEM_MODULES.map((m) => m.key);
+        setAccessibleModules(allKeys);
+        const map: Record<SystemModuleKey, boolean> = {} as any;
+        allKeys.forEach((k) => {
+          map[k] = true;
+        });
+        setCompanyEnabledModules(map);
+        setUserEditPermissions(map);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.rpc("get_user_accessible_modules", {
+          p_company_id: companyId,
+        });
+
+        if (!error && data && Array.isArray(data) && data.length > 0) {
+          const enabledMap: Record<SystemModuleKey, boolean> = {} as any;
+          const accessibleList: SystemModuleKey[] = [];
+          const editMap: Record<SystemModuleKey, boolean> = {} as any;
+
+          data.forEach((row: any) => {
+            const k = row.module_key as SystemModuleKey;
+            enabledMap[k] = Boolean(row.is_enabled_for_company);
+            if (row.can_access) {
+              accessibleList.push(k);
+            }
+            editMap[k] = Boolean(row.can_edit);
+          });
+
+          setCompanyEnabledModules(enabledMap);
+          setAccessibleModules(accessibleList);
+          setUserEditPermissions(editMap);
+          return;
+        }
+
+        // Fallback para consultas diretas se a RPC ainda não tiver sido criada
+        const { data: compMods } = await supabase
+          .from("company_modules")
+          .select("module_key, is_enabled")
+          .eq("company_id", companyId);
+
+        if (compMods && compMods.length > 0) {
+          const enabledMap: Record<SystemModuleKey, boolean> = {} as any;
+          const accessibleList: SystemModuleKey[] = [];
+          compMods.forEach((cm: any) => {
+            const k = cm.module_key as SystemModuleKey;
+            enabledMap[k] = Boolean(cm.is_enabled);
+            if (cm.is_enabled) accessibleList.push(k);
+          });
+          setCompanyEnabledModules(enabledMap);
+          setAccessibleModules(accessibleList);
+          return;
+        }
+
+        // Fallback baseado no segmento da empresa
+        const defaultList: SystemModuleKey[] = [
+          "transactions",
+          "payables",
+          "receivables",
+          "cards",
+          "reports",
+          "kpis",
+        ];
+        if (currentSegment === "obras_only" || currentSegment === "obras_financial") {
+          defaultList.push("obras");
+        }
+        if (currentSegment === "legal") {
+          defaultList.push("legal_cases");
+        }
+        const defaultMap: Record<SystemModuleKey, boolean> = {} as any;
+        defaultList.forEach((k) => {
+          defaultMap[k] = true;
+        });
+        setCompanyEnabledModules(defaultMap);
+        setAccessibleModules(defaultList);
+      } catch (err) {
+        console.error("Erro ao carregar permissões de módulos:", err);
+      }
+    },
+    [supabase]
+  );
 
   const fetchCompaniesData = useCallback(async () => {
     try {
@@ -149,25 +272,35 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       setCompanies(availableCompanies);
 
       // Define a empresa selecionada mantendo sincronizado o objeto atualizado
+      let activeComp: Company | null = null;
       if (availableCompanies.length > 0) {
         const savedId = typeof window !== "undefined" ? localStorage.getItem(LOCAL_STORAGE_KEY) : null;
         setSelectedCompany((prev) => {
           if (prev) {
             const updated = availableCompanies.find((c) => c.id === prev.id);
-            if (updated) return updated;
+            if (updated) {
+              activeComp = updated;
+              return updated;
+            }
           }
           const matching = availableCompanies.find((c) => c.id === savedId);
-          return matching || availableCompanies[0];
+          activeComp = matching || availableCompanies[0];
+          return activeComp;
         });
       } else {
         setSelectedCompany(null);
+      }
+
+      // Carrega os módulos da empresa ativa
+      if (activeComp) {
+        await fetchModulesData((activeComp as Company).id, hasMasterRole, (activeComp as Company).segment);
       }
     } catch (err) {
       console.error("Erro ao carregar empresas:", err);
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, fetchModulesData]);
 
   useEffect(() => {
     fetchCompaniesData();
@@ -198,8 +331,32 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         localStorage.setItem(LOCAL_STORAGE_KEY, target.id);
       }
+      fetchModulesData(target.id, isMaster, target.segment);
     }
   };
+
+  const refreshModules = async () => {
+    if (selectedCompany) {
+      await fetchModulesData(selectedCompany.id, isMaster, selectedCompany.segment);
+    }
+  };
+
+  const isModuleAccessible = useCallback(
+    (key: SystemModuleKey): boolean => {
+      if (isMaster) return true;
+      return accessibleModules.includes(key);
+    },
+    [isMaster, accessibleModules]
+  );
+
+  const isModuleEditable = useCallback(
+    (key: SystemModuleKey): boolean => {
+      if (isMaster) return true;
+      if (userRole === "viewer") return false;
+      return Boolean(userEditPermissions[key] && accessibleModules.includes(key));
+    },
+    [isMaster, userRole, userEditPermissions, accessibleModules]
+  );
 
   const createCompany = async (
     name: string,
@@ -320,8 +477,13 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         isMaster,
         userRole,
         loading,
+        accessibleModules,
+        companyEnabledModules,
+        isModuleAccessible,
+        isModuleEditable,
         selectCompany,
         refreshCompanies,
+        refreshModules,
         createCompany,
       }}
     >
