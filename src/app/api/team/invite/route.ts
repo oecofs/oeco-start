@@ -37,17 +37,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Valida se o usuário tem permissão de 'admin' na empresa especificada
-    const { data: membership, error: memberErr } = await supabase
+    // 2. Valida se o usuário tem permissão de 'admin' na empresa especificada ou é 'master' global
+    const { data: userRoles } = await supabase
       .from("user_companies")
-      .select("role")
-      .eq("company_id", companyId)
-      .eq("user_id", user.id)
-      .single();
+      .select("company_id, role")
+      .eq("user_id", user.id);
 
-    if (memberErr || !membership || membership.role !== "admin") {
+    const isUserMaster = (userRoles || []).some((r) => r.role === "master");
+    const isCompanyAdmin = (userRoles || []).some(
+      (r) => r.company_id === companyId && r.role === "admin"
+    );
+
+    if (!isUserMaster && !isCompanyAdmin) {
       return NextResponse.json(
-        { error: "Permissão negada. Apenas administradores da empresa podem enviar convites." },
+        { error: "Permissão negada. Apenas administradores da empresa ou usuários Master podem convidar membros." },
         { status: 403 }
       );
     }
@@ -77,9 +80,18 @@ export async function POST(request: Request) {
     );
 
     if (!linkErr && linkData?.success) {
+      // Busca o user_id do usuário vinculado para que a interface possa associar as permissões de módulos
+      const { data: linkedUser } = await adminClient
+        .from("user_companies")
+        .select("user_id")
+        .eq("company_id", companyId)
+        .eq("id", linkData.member_id)
+        .single();
+
       return NextResponse.json({
         success: true,
         isNewUser: false,
+        userId: linkedUser?.user_id,
         message: `Usuário "${emailClean}" já possuía cadastro e foi vinculado à empresa com sucesso!`,
       });
     }
@@ -124,6 +136,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       isNewUser: true,
+      userId: inviteData?.user?.id,
       message: `Convite oficial enviado por e-mail para "${emailClean}"! O usuário foi pré-vinculado e o acesso estará liberado assim que ele criar a senha pelo link recebido.`,
     });
   } catch (error: any) {
