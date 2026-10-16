@@ -284,18 +284,9 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       let activeComp: Company | null = null;
       if (availableCompanies.length > 0) {
         const savedId = typeof window !== "undefined" ? localStorage.getItem(LOCAL_STORAGE_KEY) : null;
-        setSelectedCompany((prev) => {
-          if (prev) {
-            const updated = availableCompanies.find((c) => c.id === prev.id);
-            if (updated) {
-              activeComp = updated;
-              return updated;
-            }
-          }
-          const matching = availableCompanies.find((c) => c.id === savedId);
-          activeComp = matching || availableCompanies[0];
-          return activeComp;
-        });
+        const matching = availableCompanies.find((c) => c.id === savedId);
+        activeComp = matching || availableCompanies[0];
+        setSelectedCompany(activeComp);
       } else {
         setSelectedCompany(null);
       }

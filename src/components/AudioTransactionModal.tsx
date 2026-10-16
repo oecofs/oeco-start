@@ -105,15 +105,27 @@ export default function AudioTransactionModal({
     setAudioBlob(null);
     setParsedData(null);
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErrorMsg(
+        "Seu navegador não oferece suporte à gravação de áudio ou a conexão não é segura (HTTPS é obrigatório)."
+      );
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Suporte para webm ou mp4 conforme o navegador
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-        ? "audio/mp4"
-        : "";
+      // Suporte para webm ou mp4 conforme o navegador (Safari/iOS prefere mp4/aac, Chrome prefere webm)
+      let mimeType = "";
+      if (typeof MediaRecorder !== "undefined") {
+        if (MediaRecorder.isTypeSupported("audio/webm")) {
+          mimeType = "audio/webm";
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          mimeType = "audio/mp4";
+        } else if (MediaRecorder.isTypeSupported("audio/aac")) {
+          mimeType = "audio/aac";
+        }
+      }
 
       const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
@@ -143,9 +155,19 @@ export default function AudioTransactionModal({
       }, 1000);
     } catch (err: any) {
       console.error("Erro ao acessar microfone:", err);
-      setErrorMsg(
-        "Permissão de microfone negada ou não disponível. Verifique as configurações do seu navegador."
-      );
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setErrorMsg(
+          "O acesso ao microfone foi bloqueado pelo seu navegador. Toque no ícone de 'Cadeado' ou 'Configurações do Site' na barra de endereços do seu celular, ative a permissão de Microfone e tente novamente."
+        );
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        setErrorMsg("Nenhum microfone foi detectado no seu aparelho.");
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        setErrorMsg("O microfone já está sendo usado por outro aplicativo. Feche-o e tente novamente.");
+      } else {
+        setErrorMsg(
+          err.message || "Não foi possível acessar o microfone. Verifique as permissões do seu navegador."
+        );
+      }
     }
   }
 
@@ -399,16 +421,29 @@ export default function AudioTransactionModal({
           </button>
         </div>
 
-        {/* Alerta de Erro */}
+        {/* Alerta de Erro com Ação de Tentar Novamente */}
         {errorMsg && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center justify-between">
-            <span>⚠️ {errorMsg}</span>
-            <button
-              onClick={() => setErrorMsg("")}
-              className="font-bold opacity-60 hover:opacity-100 ml-2"
-            >
-              ✕
-            </button>
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <span className="leading-relaxed">⚠️ {errorMsg}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMsg("")}
+                className="font-bold opacity-60 hover:opacity-100 p-1 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="pt-1 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={startRecording}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded-lg shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <span>🔄</span>
+                <span>Tentar Novamente (Solicitar Permissão)</span>
+              </button>
+            </div>
           </div>
         )}
 
