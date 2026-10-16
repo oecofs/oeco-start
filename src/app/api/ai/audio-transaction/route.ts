@@ -34,8 +34,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanBase64 = audioBase64
-      .replace(/^data:[^;]+;base64,/, "")
+    const cleanBase64 = (
+      audioBase64.includes(",") ? audioBase64.split(",")[1] : audioBase64
+    )
       .trim()
       .replace(/\s/g, "");
 
@@ -46,8 +47,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Normalizar MIME type para o Gemini
-    let geminiMimeType = mimeType || "audio/webm";
+    // Normalizar MIME type para o Gemini (remover parâmetros como ;codecs=opus)
+    let geminiMimeType = (mimeType || "audio/webm").split(";")[0].trim().toLowerCase();
     if (geminiMimeType === "audio/mpeg" || geminiMimeType === "audio/mp3") {
       geminiMimeType = "audio/mp3";
     } else if (geminiMimeType === "audio/m4a" || geminiMimeType === "audio/x-m4a") {
