@@ -34,7 +34,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, "");
+    const cleanBase64 = audioBase64
+      .replace(/^data:[^;]+;base64,/, "")
+      .trim()
+      .replace(/\s/g, "");
+
+    if (cleanBase64.length < 50) {
+      return NextResponse.json(
+        { error: "Áudio enviado está vazio ou corrompido." },
+        { status: 400 }
+      );
+    }
 
     // Normalizar MIME type para o Gemini
     let geminiMimeType = mimeType || "audio/webm";
@@ -124,8 +134,19 @@ Regras:
 
     if (!geminiData) {
       console.error("Todas as tentativas com Gemini falharam:", lastError);
+      let parsedGoogleError = lastError;
+      try {
+        const j = JSON.parse(lastError);
+        parsedGoogleError = j?.error?.message || lastError;
+      } catch (e) {}
+
+      const keyPreview = apiKey ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)}` : "não definida";
       return NextResponse.json(
-        { error: "Falha ao processar áudio com IA.", details: lastError },
+        {
+          error: `Erro retornado pelo Gemini: ${parsedGoogleError}`,
+          details: parsedGoogleError,
+          keyPreview: keyPreview,
+        },
         { status: 502 }
       );
     }

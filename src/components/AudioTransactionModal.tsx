@@ -267,11 +267,16 @@ export default function AudioTransactionModal({
 
       clearTimeout(timeoutId);
 
+      if (!blob || blob.size < 500) {
+        throw new Error("Gravação de áudio vazia ou muito curta. Fale de forma clara por pelo menos 2 segundos antes de parar.");
+      }
+
       const resJson = await response.json().catch(() => ({}));
 
       if (!response.ok || !resJson?.data) {
+        const keyInfo = resJson?.keyPreview ? ` [Chave Vercel: ${resJson.keyPreview}]` : "";
         throw new Error(
-          resJson?.error || resJson?.details || `Erro no servidor (${response.status})`
+          (resJson?.error || resJson?.details || `Erro no servidor (${response.status})`) + keyInfo
         );
       }
 
