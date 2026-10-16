@@ -32,7 +32,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanBase64 = audioBase64.replace(/^data:audio\/[a-zA-Z0-9.-]+;base64,/, "");
+    const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, "");
+
+    // Normalizar MIME type para o Gemini
+    let geminiMimeType = mimeType || "audio/webm";
+    if (geminiMimeType === "audio/mpeg" || geminiMimeType === "audio/mp3") {
+      geminiMimeType = "audio/mp3";
+    } else if (geminiMimeType === "audio/m4a" || geminiMimeType === "audio/x-m4a") {
+      geminiMimeType = "audio/mp4";
+    }
 
     const today = referenceDate || new Date().toISOString().split("T")[0];
 
@@ -73,7 +81,7 @@ Regras:
                 { text: prompt },
                 {
                   inlineData: {
-                    mimeType: mimeType || "audio/webm",
+                    mimeType: geminiMimeType,
                     data: cleanBase64,
                   },
                 },

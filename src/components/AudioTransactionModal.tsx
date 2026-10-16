@@ -56,6 +56,15 @@ export default function AudioTransactionModal({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const mime = file.type || "audio/mp3";
+    setAudioBlob(file);
+    processAudioWithAI(file, mime);
+  }
 
   // Reseta ao abrir ou fechar
   useEffect(() => {
@@ -114,24 +123,35 @@ export default function AudioTransactionModal({
 
     let stream: MediaStream | null = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
     } catch (err: any) {
-      console.error("Erro no getUserMedia:", err);
-      const errName = err?.name || "";
-      const errMsg = err?.message || "";
+      // Fallback para { audio: true } simples
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (innerErr: any) {
+        console.error("Erro no getUserMedia:", innerErr);
+        const errName = innerErr?.name || err?.name || "";
+        const errMsg = innerErr?.message || err?.message || "";
 
-      if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
-        setErrorMsg(
-          "O navegador ou o sistema operacional (Windows/Mac/Android/iOS) bloqueou o microfone para este site ou para o navegador. Se a chavinha do site já estiver ativa, verifique se as configurações de privacidade do Windows/celular permitem o navegador acessar o microfone."
-        );
-      } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
-        setErrorMsg("Nenhum microfone físico foi encontrado no seu dispositivo.");
-      } else if (errName === "NotReadableError" || errName === "TrackStartError") {
-        setErrorMsg("O microfone está ocupado por outro aplicativo (WhatsApp, Teams, Meet). Feche-o e tente novamente.");
-      } else {
-        setErrorMsg(`Erro de acesso ao microfone: ${errName || errMsg || "desconhecido"}.`);
+        if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
+          setErrorMsg(
+            "Permissão de microfone bloqueada pelo navegador. Se você acabou de ativar o microfone no ícone de cadeado do site, clique em 'Recarregar Página' para que o navegador aplique a alteração. Você também pode enviar um arquivo de áudio diretamente abaixo."
+          );
+        } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
+          setErrorMsg("Nenhum microfone físico foi detectado no seu dispositivo.");
+        } else if (errName === "NotReadableError" || errName === "TrackStartError") {
+          setErrorMsg("O microfone está em uso por outro aplicativo (WhatsApp, Teams, Meet). Feche-o e tente novamente.");
+        } else {
+          setErrorMsg(`Erro de microfone (${errName || "desconhecido"}): ${errMsg || "Não autorizado"}.`);
+        }
+        return;
       }
-      return;
     }
 
     try {
@@ -446,11 +466,11 @@ export default function AudioTransactionModal({
           </button>
         </div>
 
-        {/* Alerta de Erro com Ação de Tentar Novamente */}
+        {/* Alerta de Erro com Ações de Tentar Novamente, Recarregar e Upload */}
         {errorMsg && (
-          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 space-y-2">
+          <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 space-y-2.5">
             <div className="flex items-start justify-between gap-2">
-              <span className="leading-relaxed">⚠️ {errorMsg}</span>
+              <span className="leading-relaxed font-medium">⚠️ {errorMsg}</span>
               <button
                 type="button"
                 onClick={() => setErrorMsg("")}
@@ -459,14 +479,30 @@ export default function AudioTransactionModal({
                 ✕
               </button>
             </div>
-            <div className="pt-1 flex items-center gap-2">
+            <div className="pt-1 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={startRecording}
                 className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded-lg shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <span>🔄</span>
-                <span>Tentar Novamente (Solicitar Permissão)</span>
+                <span>Tentar Novamente</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-3 py-1.5 bg-gray-800 hover:bg-black text-white font-bold text-[11px] rounded-lg shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <span>🔃</span>
+                <span>Recarregar Página</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 bg-white hover:bg-gray-100 text-gray-800 font-bold text-[11px] rounded-lg border border-gray-300 shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <span>📁</span>
+                <span>Enviar Áudio Gravado</span>
               </button>
             </div>
           </div>
@@ -544,6 +580,26 @@ export default function AudioTransactionModal({
                   🟢 <strong>Exemplo A Receber:</strong> &quot;Recebi 1500 reais do cliente João Silva da consultoria de hoje&quot;
                 </p>
               </div>
+            </div>
+
+            {/* Opção Alternativa: Upload de Arquivo / Nota de Voz */}
+            <div className="pt-1 w-full flex flex-col items-center">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.webm,.caf"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <button
+                type="button"
+                disabled={processing || isRecording}
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-2xs"
+              >
+                <span>📁</span>
+                <span>Ou selecione um áudio gravado / nota de voz</span>
+              </button>
             </div>
           </div>
         )}
