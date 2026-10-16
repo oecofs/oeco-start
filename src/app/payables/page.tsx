@@ -12,6 +12,7 @@ import MonthSelector from "@/components/MonthSelector";
 import SuppliersManager from "@/components/SuppliersManager";
 import SupplierFinancialProfileDrawer from "@/components/SupplierFinancialProfileDrawer";
 import { uploadFinancialDocument } from "@/lib/storage/attachments";
+import AudioTransactionModal from "@/components/AudioTransactionModal";
 
 export type Supplier = {
   id: string;
@@ -88,6 +89,7 @@ export default function PayablesPage() {
 
   // Estado do Modal de Cadastro
   const [showModal, setShowModal] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showSuppliersModal, setShowSuppliersModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingPayable, setEditingPayable] = useState<Payable | null>(null);
@@ -749,8 +751,20 @@ export default function PayablesPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
+            <button
+              type="button"
+              onClick={() => setShowVoiceModal(true)}
+              className="bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-sm font-semibold px-3.5 py-2.5 rounded-xl shadow-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              title="Lançamento rápido por voz com inteligência artificial"
+            >
+              <span>🎙️</span>
+              <span>Lançar por Voz</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 text-white uppercase font-black">
+                IA
+              </span>
+            </button>
             <button
               onClick={() => setShowSuppliersModal(true)}
               className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-sm font-semibold px-3.5 py-2.5 rounded-xl shadow-2xs transition-colors flex items-center gap-1.5"
@@ -768,6 +782,15 @@ export default function PayablesPage() {
             </button>
           </div>
         </div>
+
+        <AudioTransactionModal
+          isOpen={showVoiceModal}
+          onClose={() => setShowVoiceModal(false)}
+          targetTypeHint="payable"
+          onSuccess={() => {
+            loadPayables();
+          }}
+        />
 
         {/* 4 Cards de Resumo Executivo */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

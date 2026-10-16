@@ -10,6 +10,8 @@ import Navigation from "@/components/Navigation";
 import MonthSelector from "@/components/MonthSelector";
 import { getCompanyAccountLedgerState } from "@/lib/ledger/closures";
 
+import AudioTransactionModal from "@/components/AudioTransactionModal";
+
 export default function DashboardPage() {
   const supabase = createClient();
   const { selectedCompany } = useCompany();
@@ -20,6 +22,7 @@ export default function DashboardPage() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
 
   // Dados do mês
   const [totalIncome, setTotalIncome] = useState(0);
@@ -186,11 +189,36 @@ export default function DashboardPage() {
   return (
     <Navigation>
       <div className="p-4 md:p-8 max-w-5xl mx-auto">
-        {/* Header com seletor de mês */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
+        {/* Header com seletor de mês e botão de Voz */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Visão consolidada do fluxo de caixa e saldos</p>
+          </div>
+          
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowVoiceModal(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <span className="text-sm">🎙️</span>
+              <span>Lançar por Voz</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 text-white uppercase font-black">
+                IA
+              </span>
+            </button>
+            <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
+          </div>
         </div>
+
+        <AudioTransactionModal
+          isOpen={showVoiceModal}
+          onClose={() => setShowVoiceModal(false)}
+          onSuccess={() => {
+            fetchDashboardData();
+          }}
+        />
 
         {loading ? (
           <div className="text-center py-12">

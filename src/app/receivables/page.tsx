@@ -12,6 +12,7 @@ import MonthSelector from "@/components/MonthSelector";
 import CustomersManager, { Customer } from "@/components/CustomersManager";
 import CustomerFinancialProfileDrawer from "@/components/CustomerFinancialProfileDrawer";
 import WhatsAppMessageModal from "@/components/WhatsAppMessageModal";
+import AudioTransactionModal from "@/components/AudioTransactionModal";
 
 type Receivable = {
   id: string;
@@ -141,6 +142,7 @@ export default function ReceivablesPage() {
 
   // Modais
   const [showForm, setShowForm] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showCustomersModal, setShowCustomersModal] = useState(false);
@@ -993,6 +995,19 @@ export default function ReceivablesPage() {
             )}
 
             <button
+              type="button"
+              onClick={() => setShowVoiceModal(true)}
+              className="px-3.5 py-2 bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="Lançamento rápido por voz com inteligência artificial"
+            >
+              <span>🎙️</span>
+              <span>Lançar por Voz</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 text-white uppercase font-black">
+                IA
+              </span>
+            </button>
+
+            <button
               onClick={() => setShowCustomersModal(true)}
               className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               title="Gerenciar cadastro de clientes"
@@ -1031,6 +1046,15 @@ export default function ReceivablesPage() {
             )}
           </div>
         </div>
+
+        <AudioTransactionModal
+          isOpen={showVoiceModal}
+          onClose={() => setShowVoiceModal(false)}
+          targetTypeHint="receivable"
+          onSuccess={() => {
+            fetchReceivablesData();
+          }}
+        />
 
         {/* Feedback Messages */}
         {error && (
