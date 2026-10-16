@@ -69,43 +69,66 @@ Regras:
 3. Formate a data no padrão ISO YYYY-MM-DD.
 4. Se o valor não for detectado, retorne 0.0.`;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
+    const candidateModels = [
+      "gemini-3.5-flash",
+      "gemini-flash-latest",
+      "gemini-3.8-flash",
+      "gemini-2.5-flash",
+    ];
+
+    let geminiData: any = null;
+    let lastError = "";
+
+    for (const model of candidateModels) {
+      try {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
                 {
-                  inlineData: {
-                    mimeType: geminiMimeType,
-                    data: cleanBase64,
-                  },
+                  parts: [
+                    { text: prompt },
+                    {
+                      inlineData: {
+                        mimeType: geminiMimeType,
+                        data: cleanBase64,
+                      },
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
+              generationConfig: {
+                temperature: 0.1,
+                responseMimeType: "application/json",
+              },
+            }),
+          }
+        );
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error("Erro na API do Gemini:", errText);
+        if (geminiRes.ok) {
+          geminiData = await geminiRes.json();
+          break;
+        } else {
+          lastError = await geminiRes.text();
+          console.warn(`Tentativa com ${model} falhou:`, lastError);
+        }
+      } catch (callErr: any) {
+        lastError = callErr?.message || "Erro de conexão com Gemini";
+        console.warn(`Erro de conexão com ${model}:`, callErr);
+      }
+    }
+
+    if (!geminiData) {
+      console.error("Todas as tentativas com Gemini falharam:", lastError);
       return NextResponse.json(
-        { error: "Falha ao processar áudio com IA.", details: errText },
+        { error: "Falha ao processar áudio com IA.", details: lastError },
         { status: 502 }
       );
     }
 
-    const geminiData = await geminiRes.json();
     const rawContent =
       geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 

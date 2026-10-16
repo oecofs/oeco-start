@@ -43,7 +43,7 @@ Analise a imagem deste documento/recibo e retorne ESTRITAMENTE um objeto JSON v�
 Se algum campo não estiver claro, faça a melhor inferência possível ou deixe null.`;
 
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

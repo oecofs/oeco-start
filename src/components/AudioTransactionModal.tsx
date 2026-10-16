@@ -173,7 +173,10 @@ export default function AudioTransactionModal({
         }
       }
 
-      const options = mimeType ? { mimeType } : undefined;
+      const options: MediaRecorderOptions = {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: 64000,
+      };
       let mediaRecorder: MediaRecorder;
       try {
         mediaRecorder = new MediaRecorder(stream, options);
