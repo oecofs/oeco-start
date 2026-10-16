@@ -112,22 +112,55 @@ export default function AudioTransactionModal({
       return;
     }
 
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Suporte para webm ou mp4 conforme o navegador (Safari/iOS prefere mp4/aac, Chrome prefere webm)
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err: any) {
+      console.error("Erro no getUserMedia:", err);
+      const errName = err?.name || "";
+      const errMsg = err?.message || "";
+
+      if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
+        setErrorMsg(
+          "O navegador ou o sistema operacional (Windows/Mac/Android/iOS) bloqueou o microfone para este site ou para o navegador. Se a chavinha do site já estiver ativa, verifique se as configurações de privacidade do Windows/celular permitem o navegador acessar o microfone."
+        );
+      } else if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
+        setErrorMsg("Nenhum microfone físico foi encontrado no seu dispositivo.");
+      } else if (errName === "NotReadableError" || errName === "TrackStartError") {
+        setErrorMsg("O microfone está ocupado por outro aplicativo (WhatsApp, Teams, Meet). Feche-o e tente novamente.");
+      } else {
+        setErrorMsg(`Erro de acesso ao microfone: ${errName || errMsg || "desconhecido"}.`);
+      }
+      return;
+    }
+
+    try {
+      // Suporte para webm, mp4 ou aac conforme o navegador
       let mimeType = "";
       if (typeof MediaRecorder !== "undefined") {
-        if (MediaRecorder.isTypeSupported("audio/webm")) {
-          mimeType = "audio/webm";
-        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
-          mimeType = "audio/mp4";
-        } else if (MediaRecorder.isTypeSupported("audio/aac")) {
-          mimeType = "audio/aac";
+        const types = [
+          "audio/webm;codecs=opus",
+          "audio/webm",
+          "audio/mp4",
+          "audio/aac",
+          "audio/ogg",
+        ];
+        for (const t of types) {
+          if (MediaRecorder.isTypeSupported(t)) {
+            mimeType = t;
+            break;
+          }
         }
       }
 
-      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const options = mimeType ? { mimeType } : undefined;
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, options);
+      } catch (recErr) {
+        // Fallback sem options se o navegador não gostar do mimeType
+        mediaRecorder = new MediaRecorder(stream);
+      }
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -137,13 +170,14 @@ export default function AudioTransactionModal({
       };
 
       mediaRecorder.onstop = () => {
+        const actualType = mediaRecorder.mimeType || mimeType || "audio/webm";
         const recordedBlob = new Blob(audioChunksRef.current, {
-          type: mimeType || "audio/webm",
+          type: actualType,
         });
         setAudioBlob(recordedBlob);
-        stream.getTracks().forEach((track) => track.stop());
+        stream?.getTracks().forEach((track) => track.stop());
         // Envia automaticamente para a IA após parar
-        processAudioWithAI(recordedBlob, mimeType || "audio/webm");
+        processAudioWithAI(recordedBlob, actualType);
       };
 
       mediaRecorder.start(250); // Coleta a cada 250ms
@@ -154,20 +188,11 @@ export default function AudioTransactionModal({
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (err: any) {
-      console.error("Erro ao acessar microfone:", err);
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        setErrorMsg(
-          "O acesso ao microfone foi bloqueado pelo seu navegador. Toque no ícone de 'Cadeado' ou 'Configurações do Site' na barra de endereços do seu celular, ative a permissão de Microfone e tente novamente."
-        );
-      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        setErrorMsg("Nenhum microfone foi detectado no seu aparelho.");
-      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
-        setErrorMsg("O microfone já está sendo usado por outro aplicativo. Feche-o e tente novamente.");
-      } else {
-        setErrorMsg(
-          err.message || "Não foi possível acessar o microfone. Verifique as permissões do seu navegador."
-        );
-      }
+      console.error("Erro ao inicializar MediaRecorder:", err);
+      stream?.getTracks().forEach((track) => track.stop());
+      setErrorMsg(
+        `Erro ao inicializar o gravador do navegador: ${err?.message || "codec de áudio incompatível"}.`
+      );
     }
   }
 
