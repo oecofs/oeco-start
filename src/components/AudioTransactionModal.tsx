@@ -237,44 +237,63 @@ export default function AudioTransactionModal({
     setErrorMsg("");
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64Data = reader.result as string;
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === "string") {
+            resolve(reader.result);
+          } else {
+            reject(new Error("Falha ao converter áudio gravado."));
+          }
+        };
+        reader.onerror = () => reject(new Error("Erro ao ler dados de áudio."));
+        reader.readAsDataURL(blob);
+      });
 
-        const response = await fetch("/api/ai/audio-transaction", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            audioBase64: base64Data,
-            mimeType: mimeType,
-            targetTypeHint: targetTypeHint || type,
-            referenceDate: new Date().toISOString().split("T")[0],
-          }),
-        });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        const resJson = await response.json();
+      const response = await fetch("/api/ai/audio-transaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          audioBase64: base64Data,
+          mimeType: mimeType,
+          targetTypeHint: targetTypeHint || type,
+          referenceDate: new Date().toISOString().split("T")[0],
+        }),
+      });
 
-        if (!response.ok || !resJson?.data) {
-          throw new Error(resJson?.error || "Não foi possível entender o áudio gravado.");
-        }
+      clearTimeout(timeoutId);
 
-        const data: ParsedTransaction = resJson.data;
-        setParsedData(data);
+      const resJson = await response.json().catch(() => ({}));
 
-        // Preenche os campos para conferência do usuário
-        setType(data.type || targetTypeHint || "payable");
-        setEntityName(data.entity_name || "");
-        setDescription(data.description || "");
-        setAmount(data.amount ? String(data.amount) : "");
-        setDueDate(data.due_date || new Date().toISOString().split("T")[0]);
-        setPaymentMethod(data.payment_method || "pix");
-        setNotes(data.notes || "");
-        setProcessing(false);
-      };
+      if (!response.ok || !resJson?.data) {
+        throw new Error(
+          resJson?.error || resJson?.details || `Erro no servidor (${response.status})`
+        );
+      }
+
+      const data: ParsedTransaction = resJson.data;
+      setParsedData(data);
+
+      // Preenche os campos para conferência do usuário
+      setType(data.type || targetTypeHint || "payable");
+      setEntityName(data.entity_name || "");
+      setDescription(data.description || "");
+      setAmount(data.amount ? String(data.amount) : "");
+      setDueDate(data.due_date || new Date().toISOString().split("T")[0]);
+      setPaymentMethod(data.payment_method || "pix");
+      setNotes(data.notes || "");
     } catch (err: any) {
       console.error("Erro no processamento:", err);
-      setErrorMsg(err.message || "Erro ao interpretar áudio com IA.");
+      if (err?.name === "AbortError") {
+        setErrorMsg("A requisição demorou muito para responder (tempo limite). Tente gravar uma frase mais objetiva ou tente novamente.");
+      } else {
+        setErrorMsg(err?.message || "Erro ao interpretar áudio com IA.");
+      }
+    } finally {
       setProcessing(false);
     }
   }

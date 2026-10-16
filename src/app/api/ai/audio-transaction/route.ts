@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     const supabase = createClient();
@@ -71,9 +73,7 @@ Regras:
 
     const candidateModels = [
       "gemini-3.5-flash",
-      "gemini-flash-latest",
-      "gemini-3.8-flash",
-      "gemini-2.5-flash",
+      "gemini-3.5-flash-lite",
     ];
 
     let geminiData: any = null;
@@ -86,6 +86,7 @@ Regras:
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            signal: AbortSignal.timeout(14000),
             body: JSON.stringify({
               contents: [
                 {
