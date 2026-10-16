@@ -200,11 +200,11 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setShowVoiceModal(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs shadow-sm transition-all active:scale-95 cursor-pointer"
             >
-              <span className="text-sm">🎙️</span>
-              <span>Lançar por Voz</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 text-white uppercase font-black">
+              <span className="text-base leading-none">🎙️</span>
+              <span className="text-white">Lançar por Voz</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/30 text-amber-200 border border-amber-400/30 uppercase font-black tracking-wide">
                 IA
               </span>
             </button>

@@ -997,12 +997,12 @@ export default function ReceivablesPage() {
             <button
               type="button"
               onClick={() => setShowVoiceModal(true)}
-              className="px-3.5 py-2 bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+              className="px-3.5 py-2 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer active:scale-95"
               title="Lançamento rápido por voz com inteligência artificial"
             >
-              <span>🎙️</span>
-              <span>Lançar por Voz</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 text-white uppercase font-black">
+              <span className="text-base leading-none">🎙️</span>
+              <span className="text-white">Lançar por Voz</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/30 text-amber-200 border border-amber-400/30 uppercase font-black tracking-wide">
                 IA
               </span>
             </button>
