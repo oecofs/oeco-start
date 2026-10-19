@@ -1301,11 +1301,21 @@ export default function ReceivablesPage() {
                             </td>
                             <td className="py-2.5 px-3 text-gray-500 text-xs whitespace-nowrap">
                               {r.nf_number ? (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold">
-                                  NF {r.nf_number}
-                                </span>
+                                <Link
+                                  href="/invoices"
+                                  className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-[10px] hover:bg-emerald-100 transition-colors"
+                                  title="Ver NFS-e no módulo fiscal"
+                                >
+                                  NFS-e {r.nf_number}
+                                </Link>
                               ) : (
-                                "—"
+                                <Link
+                                  href="/invoices"
+                                  className="text-[10px] text-emerald-700 hover:text-emerald-900 hover:underline font-bold"
+                                  title="Ir para o módulo de emissão de NFS-e"
+                                >
+                                  + Emitir
+                                </Link>
                               )}
                             </td>
                             <td className="py-2.5 px-3 text-xs whitespace-nowrap">
@@ -1395,6 +1405,16 @@ export default function ReceivablesPage() {
                                   <span>💬</span>
                                   <span className="hidden xl:inline text-[11px]">Whats</span>
                                 </button>
+
+                                {/* Botão Módulo Fiscal NFS-e */}
+                                <Link
+                                  href="/invoices"
+                                  className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
+                                  title="Emitir / Acompanhar NFS-e no módulo fiscal"
+                                >
+                                  <span>🧾</span>
+                                  <span className="hidden xl:inline text-[11px]">NFS-e</span>
+                                </Link>
 
                                 {/* Link para Extrato Bancário */}
                                 {(isReceived || isPartial || received > 0) && (
