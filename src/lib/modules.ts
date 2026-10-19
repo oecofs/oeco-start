@@ -2,6 +2,7 @@ export type SystemModuleKey =
   | "transactions"
   | "payables"
   | "receivables"
+  | "invoices"
   | "cards"
   | "obras"
   | "legal_cases"
@@ -46,6 +47,16 @@ export const SYSTEM_MODULES: SystemModuleDefinition[] = [
     icon: "💰",
     route: "/receivables",
     category: "finance",
+  },
+  {
+    key: "invoices",
+    label: "Notas Fiscais (NFS-e)",
+    shortLabel: "Notas Fiscais",
+    description: "Emissão de NFS-e, modelos de serviço, DANFSE PDF, XML e certificado A1.",
+    icon: "🧾",
+    route: "/invoices",
+    category: "finance",
+    badge: "Fiscal",
   },
   {
     key: "cards",

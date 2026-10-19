@@ -40,7 +40,9 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
     ...(isModuleAccessible("receivables")
       ? [{ href: "/receivables", label: "Recebíveis", icon: "💰" }]
       : []),
-    { href: "/invoices", label: "Notas Fiscais", icon: "🧾" },
+    ...(isModuleAccessible("invoices")
+      ? [{ href: "/invoices", label: "Notas Fiscais", icon: "🧾" }]
+      : []),
     ...(isModuleAccessible("cards")
       ? [{ href: "/cards", label: "Cartões", icon: "💳" }]
       : []),

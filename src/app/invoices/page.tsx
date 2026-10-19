@@ -15,7 +15,7 @@ import { generateDanfsePdf, downloadNfseXml } from "@/lib/fiscal/danfseGenerator
 
 export default function InvoicesPage() {
   const supabase = createClient();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, isModuleAccessible } = useCompany();
 
   const companyId = selectedCompany?.id || "default";
 
@@ -277,6 +277,26 @@ export default function InvoicesPage() {
       totalCount: monthNotes.length,
     };
   }, [invoices, selectedMonth]);
+
+  // Se o módulo de Notas Fiscais não estiver liberado para esta empresa
+  if (selectedCompany && !isModuleAccessible("invoices")) {
+    return (
+      <Navigation>
+        <div className="p-6 sm:p-12 max-w-lg mx-auto text-center space-y-4 pt-16">
+          <div className="w-16 h-16 rounded-3xl bg-amber-50 text-amber-600 flex items-center justify-center text-3xl mx-auto border border-amber-200 shadow-sm">
+            🔒
+          </div>
+          <h2 className="text-xl font-black text-slate-800 tracking-tight">
+            Módulo de Notas Fiscais Não Contratado
+          </h2>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            O emissor de NFS-e não está ativo para a empresa <strong>{selectedCompany.name}</strong>.
+            Para contratar e liberar a emissão de notas fiscais com integração à prefeitura, solicite a ativação com o administrador da sua conta.
+          </p>
+        </div>
+      </Navigation>
+    );
+  }
 
   return (
     <Navigation>
