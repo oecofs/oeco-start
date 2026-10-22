@@ -130,22 +130,17 @@ export default function BankAccountsPage() {
         .update(payload)
         .eq("id", editingId);
       if (error) {
-        setError("Erro ao atualizar conta.");
+        console.error("Erro ao atualizar conta:", error);
+        setError(`Erro ao atualizar conta: ${error.message || "Tente novamente."}`);
         return;
       }
       setSuccess("Conta atualizada com sucesso!");
     } else {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      const { error } = await supabase.from("bank_accounts").insert({
-        ...payload,
-        user_id: user?.id,
-      });
+      const { error } = await supabase.from("bank_accounts").insert(payload);
 
       if (error) {
-        setError("Erro ao criar conta.");
+        console.error("Erro ao criar conta:", error);
+        setError(`Erro ao criar conta: ${error.message || "Tente novamente."}`);
         return;
       }
       setSuccess("Conta criada com sucesso!");

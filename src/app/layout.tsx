@@ -17,6 +17,9 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: wl.appName,
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
