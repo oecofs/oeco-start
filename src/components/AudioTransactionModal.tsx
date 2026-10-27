@@ -375,7 +375,7 @@ export default function AudioTransactionModal({
             amount: numAmount,
             due_date: dueDate,
             month_ref: monthRef,
-            status: "pending",
+            status: "open",
             notes: notes.trim()
               ? `[Lançado via IA/Voz]: ${notes.trim()}`
               : "[Lançado via IA/Voz]",
