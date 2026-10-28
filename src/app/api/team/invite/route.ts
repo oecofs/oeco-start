@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // 5. Se o usuário ainda não existe, dispara o convite oficial do Supabase Admin
+    // 5. Se o usuário ainda não existe, tenta o convite
     const requestOrigin = request.headers.get("origin") || request.headers.get("host");
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -105,6 +105,11 @@ export async function POST(request: Request) {
 
     const redirectTo = `${appUrl.replace(/\/$/, "")}/auth/reset-password`;
 
+    let finalUserId: string | null = null;
+    let inviteLink: string | null = null;
+    let emailSent = false;
+
+    // Tentativa 1: Enviar convite oficial por e-mail via Supabase Auth
     const { data: inviteData, error: inviteError } =
       await adminClient.auth.admin.inviteUserByEmail(emailClean, {
         redirectTo,
@@ -114,18 +119,64 @@ export async function POST(request: Request) {
         },
       });
 
-    if (inviteError) {
-      return NextResponse.json(
-        { error: `Erro ao enviar convite: ${inviteError.message}` },
-        { status: 400 }
+    if (!inviteError && inviteData?.user?.id) {
+      finalUserId = inviteData.user.id;
+      emailSent = true;
+    } else {
+      console.warn(
+        "inviteUserByEmail falhou (provável falta de SMTP ou limite de taxa do Supabase). Aplicando fallback com generateLink...",
+        inviteError
       );
+
+      // Tentativa 2 (Fallback Resiliente): Gera o link de ativação sem depender do servidor SMTP
+      const { data: genData, error: genError } =
+        await adminClient.auth.admin.generateLink({
+          type: "invite",
+          email: emailClean,
+          options: {
+            redirectTo,
+            data: {
+              role,
+              company_id: companyId,
+            },
+          },
+        });
+
+      if (!genError && genData?.user?.id) {
+        finalUserId = genData.user.id;
+        inviteLink = genData.properties?.action_link || null;
+      } else {
+        // Se ainda falhar (ex: usuário já existe em auth.users), gera link de primeiro acesso / recuperação
+        const { data: recoveryData, error: recoveryError } =
+          await adminClient.auth.admin.generateLink({
+            type: "recovery",
+            email: emailClean,
+            options: {
+              redirectTo,
+            },
+          });
+
+        if (recoveryError || !recoveryData?.user?.id) {
+          return NextResponse.json(
+            {
+              error: `Erro ao enviar convite: ${
+                inviteError?.message || genError?.message || recoveryError?.message
+              }`,
+            },
+            { status: 400 }
+          );
+        }
+
+        finalUserId = recoveryData.user.id;
+        inviteLink = recoveryData.properties?.action_link || null;
+      }
     }
 
-    if (inviteData?.user?.id) {
+    if (finalUserId) {
       // Pré-vincula o usuário na tabela user_companies
       await adminClient.from("user_companies").upsert(
         {
-          user_id: inviteData.user.id,
+          user_id: finalUserId,
           company_id: companyId,
           role: role,
         },
@@ -136,8 +187,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       isNewUser: true,
-      userId: inviteData?.user?.id,
-      message: `Convite oficial enviado por e-mail para "${emailClean}"! O usuário foi pré-vinculado e o acesso estará liberado assim que ele criar a senha pelo link recebido.`,
+      userId: finalUserId,
+      inviteLink,
+      emailSent,
+      message: emailSent
+        ? `Convite oficial enviado por e-mail para "${emailClean}"! O usuário foi pré-vinculado e o acesso estará liberado assim que ele criar a senha pelo link recebido.`
+        : `Usuário "${emailClean}" vinculado com sucesso! Como o servidor de e-mail do Supabase atingiu o limite ou está sem SMTP, geramos o link de ativação direto para envio pelo WhatsApp.`,
     });
   } catch (error: any) {
     console.error("Erro na rota de convite:", error);

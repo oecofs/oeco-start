@@ -82,6 +82,8 @@ export default function TeamManager() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [inviteLinkData, setInviteLinkData] = useState<{ email: string; link: string } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // 1. Buscar membros da empresa ativa
   const fetchMembers = useCallback(async () => {
@@ -359,9 +361,13 @@ export default function TeamManager() {
           .upsert(permInserts, { onConflict: "company_id,user_id,module_key" });
       }
 
+      if (resData?.inviteLink) {
+        setInviteLinkData({ email: emailClean, link: resData.inviteLink });
+      }
+
       setFeedback({
         type: "success",
-        message: resData.message || `Convite enviado com sucesso para "${emailClean}".`,
+        message: resData.message || `Convite processado com sucesso para "${emailClean}".`,
       });
       setShowInviteModal(false);
       setInviteEmail("");
@@ -724,6 +730,80 @@ export default function TeamManager() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Link de Ativação Direto (Fallback quando SMTP não envia ou atinge limite) */}
+      {inviteLinkData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-emerald-600 mb-3">
+              <span className="text-2xl">🎉</span>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">
+                  Link de Ativação Gerado!
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Membro cadastrado e vinculado com sucesso
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-600 leading-relaxed mb-4">
+              O usuário <strong>{inviteLinkData.email}</strong> já foi vinculado com sucesso à empresa e teve suas permissões liberadas. Como o servidor de e-mail do Supabase atingiu a cota de envios automáticos, envie o link de ativação diretamente para ele criar a senha:
+            </p>
+
+            <div className="bg-slate-50 border border-gray-200 rounded-xl p-3 mb-4">
+              <div className="text-[11px] font-semibold text-gray-500 mb-1">
+                Link de ativação seguro (único para este usuário):
+              </div>
+              <input
+                type="text"
+                readOnly
+                value={inviteLinkData.link}
+                className="w-full text-xs font-mono bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-800 select-all focus:outline-none"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(inviteLinkData.link);
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 2500);
+                }}
+                className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  copiedLink
+                    ? "bg-emerald-600 text-white"
+                    : "bg-primary hover:bg-primary-dark text-white"
+                }`}
+              >
+                <span>{copiedLink ? "✓" : "📋"}</span>
+                <span>{copiedLink ? "Link Copiado!" : "Copiar Link"}</span>
+              </button>
+
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Olá! Seu acesso à plataforma da ${selectedCompany?.name || "empresa"} foi liberado. Defina sua senha inicial pelo link seguro:\n\n${inviteLinkData.link}`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-center"
+              >
+                <span>💬</span>
+                <span>Enviar no WhatsApp</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setInviteLinkData(null)}
+                className="py-2 px-3 border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-semibold rounded-xl transition-all text-center cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
