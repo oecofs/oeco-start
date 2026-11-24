@@ -94,6 +94,22 @@ export default function ObraDetalhesPage() {
   const [deletingTransacao, setDeletingTransacao] = useState<TransacaoItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Modal de Edição da Obra
+  const [showEditObraModal, setShowEditObraModal] = useState(false);
+  const [editObraNome, setEditObraNome] = useState("");
+  const [editObraCliente, setEditObraCliente] = useState("");
+  const [editObraEndereco, setEditObraEndereco] = useState("");
+  const [editObraStatus, setEditObraStatus] = useState<"ativa" | "pausada" | "concluida" | "cancelada">("ativa");
+  const [editObraValor, setEditObraValor] = useState("");
+  const [editObraDataInicio, setEditObraDataInicio] = useState("");
+  const [editObraDataFim, setEditObraDataFim] = useState("");
+  const [editObraObservacoes, setEditObraObservacoes] = useState("");
+  const [savingObra, setSavingObra] = useState(false);
+
+  // Modal de Exclusão da Obra
+  const [showDeleteObraModal, setShowDeleteObraModal] = useState(false);
+  const [isDeletingObra, setIsDeletingObra] = useState(false);
+
   // Busca e Filtros no Extrato da Obra
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTipo, setFilterTipo] = useState<"todos" | "despesa" | "receita">("todos");
@@ -276,6 +292,88 @@ export default function ObraDetalhesPage() {
     }
   }
 
+  // Abrir modal de edição dos dados da obra
+  function handleOpenEditObra() {
+    if (!obra) return;
+    setEditObraNome(obra.nome || "");
+    setEditObraCliente(obra.cliente || "");
+    setEditObraEndereco(obra.endereco || "");
+    setEditObraStatus(obra.status || "ativa");
+    setEditObraValor(String(obra.valor_contratado || ""));
+    setEditObraDataInicio(obra.data_inicio || "");
+    setEditObraDataFim(obra.data_fim_previsto || "");
+    setEditObraObservacoes(obra.observacoes || "");
+    setShowEditObraModal(true);
+  }
+
+  // Salvar alterações da obra (incluindo status)
+  async function handleSaveEditObra(e: React.FormEvent) {
+    e.preventDefault();
+    if (!obra || !selectedCompany?.id) return;
+
+    if (!editObraNome.trim()) {
+      alert("Informe o nome da obra.");
+      return;
+    }
+    if (!editObraCliente.trim()) {
+      alert("Informe o nome do cliente.");
+      return;
+    }
+
+    const valorNum = parseFloat(editObraValor.replace(",", ".")) || 0;
+
+    setSavingObra(true);
+    try {
+      const { data: updated, error } = await supabase
+        .from("obras")
+        .update({
+          nome: editObraNome.trim(),
+          cliente: editObraCliente.trim(),
+          endereco: editObraEndereco.trim() || null,
+          status: editObraStatus,
+          valor_contratado: valorNum,
+          data_inicio: editObraDataInicio || new Date().toISOString().split("T")[0],
+          data_fim_previsto: editObraDataFim || null,
+          observacoes: editObraObservacoes.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", obra.id)
+        .eq("company_id", selectedCompany.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setObra(updated);
+      setShowEditObraModal(false);
+    } catch (err: any) {
+      alert(err.message || "Erro ao salvar alterações da obra.");
+    } finally {
+      setSavingObra(false);
+    }
+  }
+
+  // Excluir a obra inteira (em cascata)
+  async function handleConfirmDeleteObra() {
+    if (!obra || !selectedCompany?.id) return;
+    setIsDeletingObra(true);
+    try {
+      const { error } = await supabase
+        .from("obras")
+        .delete()
+        .eq("id", obra.id)
+        .eq("company_id", selectedCompany.id);
+
+      if (error) throw error;
+
+      setShowDeleteObraModal(false);
+      router.push("/obras/lista");
+    } catch (err: any) {
+      alert(err.message || "Erro ao excluir obra.");
+      setIsDeletingObra(false);
+    }
+  }
+
   // Salvar Aditivo Contratual
   async function handleAddAditivo(e: React.FormEvent) {
     e.preventDefault();
@@ -366,14 +464,50 @@ export default function ObraDetalhesPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <ObrasBackButton href="/obras/lista" />
             <h1 className="text-xl sm:text-2xl font-black text-gray-900">
               {obra.nome}
             </h1>
-            <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-              {obra.status}
+            <span
+              className={`px-2.5 py-0.5 text-[10px] font-extrabold uppercase rounded-full border ${
+                obra.status === "ativa"
+                  ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                  : obra.status === "pausada"
+                  ? "bg-amber-100 text-amber-800 border-amber-200"
+                  : obra.status === "concluida"
+                  ? "bg-blue-100 text-blue-800 border-blue-200"
+                  : "bg-gray-100 text-gray-700 border-gray-200"
+              }`}
+            >
+              {obra.status === "ativa"
+                ? "🟢 Ativa"
+                : obra.status === "pausada"
+                ? "🟡 Pausada"
+                : obra.status === "concluida"
+                ? "🔵 Concluída"
+                : "⚪ Cancelada"}
             </span>
+
+            {/* Ações da Obra: Editar e Excluir */}
+            <div className="flex items-center gap-1.5 ml-1">
+              <button
+                type="button"
+                onClick={handleOpenEditObra}
+                title="Editar dados e status da obra"
+                className="px-2.5 py-1 rounded-xl bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-900 text-xs font-bold transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+              >
+                <span>✏️</span> Editar Obra
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteObraModal(true)}
+                title="Excluir obra permanentemente"
+                className="px-2.5 py-1 rounded-xl bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-700 text-xs font-bold transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+              >
+                <span>🗑️</span> Excluir
+              </button>
+            </div>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
             Cliente: <strong className="text-gray-800">{obra.cliente}</strong>
@@ -1340,6 +1474,261 @@ export default function ObraDetalhesPage() {
                 className="w-full py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50"
               >
                 {isDeleting ? "Excluindo..." : "Sim, Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição da Obra */}
+      {showEditObraModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl my-8 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <span>🏗️</span> Editar Obra / Projeto
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditObraModal(false)}
+                className="text-gray-400 hover:text-gray-700 text-sm font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditObra} className="space-y-4">
+              {/* Status da Obra em 4 Caixas Clicáveis */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                  Status da Obra
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditObraStatus("ativa")}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                      editObraStatus === "ativa"
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs ring-2 ring-emerald-500/20 font-black"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>🟢</span>
+                    <span>Ativa</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditObraStatus("pausada")}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                      editObraStatus === "pausada"
+                        ? "bg-amber-50 border-amber-500 text-amber-800 shadow-xs ring-2 ring-amber-500/20 font-black"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>🟡</span>
+                    <span>Pausada</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditObraStatus("concluida")}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                      editObraStatus === "concluida"
+                        ? "bg-blue-50 border-blue-500 text-blue-800 shadow-xs ring-2 ring-blue-500/20 font-black"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>🔵</span>
+                    <span>Concluída</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditObraStatus("cancelada")}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                      editObraStatus === "cancelada"
+                        ? "bg-rose-50 border-rose-500 text-rose-800 shadow-xs ring-2 ring-rose-500/20 font-black"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>⚪</span>
+                    <span>Cancelada</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Nome e Cliente */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Nome da Obra <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editObraNome}
+                    onChange={(e) => setEditObraNome(e.target.value)}
+                    placeholder="Ex: Reforma Cobertura Jardins"
+                    required
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Cliente <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editObraCliente}
+                    onChange={(e) => setEditObraCliente(e.target.value)}
+                    placeholder="Ex: Roberto Mendes"
+                    required
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Valor Contratado Base e Endereço */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Valor Contratado Base (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editObraValor}
+                    onChange={(e) => setEditObraValor(e.target.value)}
+                    placeholder="0,00"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Endereço
+                  </label>
+                  <input
+                    type="text"
+                    value={editObraEndereco}
+                    onChange={(e) => setEditObraEndereco(e.target.value)}
+                    placeholder="Ex: Av. Paulista, 1000 - Apto 51"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Data Início e Previsão Término */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Data de Início
+                  </label>
+                  <input
+                    type="date"
+                    value={editObraDataInicio}
+                    onChange={(e) => setEditObraDataInicio(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Previsão de Conclusão
+                  </label>
+                  <input
+                    type="date"
+                    value={editObraDataFim}
+                    onChange={(e) => setEditObraDataFim(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                  Observações
+                </label>
+                <textarea
+                  rows={2}
+                  value={editObraObservacoes}
+                  onChange={(e) => setEditObraObservacoes(e.target.value)}
+                  placeholder="Informações adicionais do contrato ou escopo..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditObraModal(false)}
+                  className="py-2.5 px-4 rounded-xl text-gray-600 hover:bg-gray-100 font-bold text-xs transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingObra}
+                  className="py-2.5 px-5 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {savingObra ? "Salvando..." : "✓ Salvar Dados da Obra"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Exclusão da Obra */}
+      {showDeleteObraModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 mx-auto flex items-center justify-center text-2xl">
+                ⚠️
+              </div>
+              <h3 className="text-base font-bold text-gray-900">
+                Excluir Obra Permanentemente?
+              </h3>
+              <p className="text-xs text-gray-600">
+                Você está prestes a excluir a obra <strong className="text-gray-900">{obra.nome}</strong> (Cliente: {obra.cliente}).
+              </p>
+              
+              <div className="bg-red-50 p-3 rounded-2xl border border-red-200 text-left space-y-1">
+                <span className="text-[11px] font-bold text-red-800 uppercase block">
+                  Atenção ao impacto:
+                </span>
+                <p className="text-xs text-red-700">
+                  • <strong>{transacoes.length}</strong> despesas/receitas vinculadas.
+                </p>
+                <p className="text-xs text-red-700">
+                  • <strong>{aditivos.length}</strong> aditivos contratuais registrados.
+                </p>
+                <p className="text-[11px] text-red-600 font-semibold mt-1">
+                  Todos os lançamentos financeiros vinculados serão apagados do sistema. Essa ação NÃO pode ser desfeita.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteObraModal(false)}
+                disabled={isDeletingObra}
+                className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteObra}
+                disabled={isDeletingObra}
+                className="w-full py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isDeletingObra ? "Excluindo Obra..." : "Sim, Excluir Obra"}
               </button>
             </div>
           </div>

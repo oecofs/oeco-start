@@ -31,75 +31,167 @@ export default function ListaObrasPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ativa");
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
+  // Modal de Edição de Obra na Lista
+  const [editingObra, setEditingObra] = useState<ObraItem | null>(null);
+  const [editNome, setEditNome] = useState("");
+  const [editCliente, setEditCliente] = useState("");
+  const [editEndereco, setEditEndereco] = useState("");
+  const [editStatus, setEditStatus] = useState<"ativa" | "pausada" | "concluida" | "cancelada">("ativa");
+  const [editValor, setEditValor] = useState("");
+  const [editDataInicio, setEditDataInicio] = useState("");
+  const [editDataFim, setEditDataFim] = useState("");
+  const [editObservacoes, setEditObservacoes] = useState("");
+  const [savingObra, setSavingObra] = useState(false);
+
+  // Modal de Exclusão de Obra na Lista
+  const [deletingObra, setDeletingObra] = useState<ObraItem | null>(null);
+  const [isDeletingObra, setIsDeletingObra] = useState(false);
+
+  async function loadObrasAndFinances() {
     if (!selectedCompany?.id) return;
     const currentCompanyId = selectedCompany.id;
+    setLoading(true);
+    try {
+      // 1. Busca todas as obras da empresa
+      const { data: obrasData, error: obrasErr } = await supabase
+        .from("obras")
+        .select("*")
+        .eq("company_id", currentCompanyId)
+        .order("created_at", { ascending: false });
 
-    async function loadObrasAndFinances() {
-      setLoading(true);
-      try {
-        // 1. Busca todas as obras da empresa
-        const { data: obrasData, error: obrasErr } = await supabase
-          .from("obras")
-          .select("*")
-          .eq("company_id", currentCompanyId)
-          .order("created_at", { ascending: false });
+      if (obrasErr) throw obrasErr;
 
-        if (obrasErr) throw obrasErr;
-
-        if (!obrasData || obrasData.length === 0) {
-          setObras([]);
-          setLoading(false);
-          return;
-        }
-
-        const obraIds = obrasData.map((o) => o.id);
-
-        // 2. Busca aditivos de todas as obras
-        const { data: aditivosData } = await supabase
-          .from("obra_aditivos")
-          .select("obra_id, valor")
-          .in("obra_id", obraIds);
-
-        // 3. Busca transações de todas as obras
-        const { data: transacoesData } = await supabase
-          .from("obra_transacoes")
-          .select("obra_id, tipo, valor, status_pagamento")
-          .in("obra_id", obraIds);
-
-        // Consolida métricas 360 por obra
-        const obrasComMetricas: ObraItem[] = obrasData.map((obra) => {
-          const aditivosTotal = (aditivosData || [])
-            .filter((a) => a.obra_id === obra.id)
-            .reduce((sum, a) => sum + Number(a.valor || 0), 0);
-
-          const despesasTotal = (transacoesData || [])
-            .filter((t) => t.obra_id === obra.id && t.tipo === "despesa")
-            .reduce((sum, t) => sum + Number(t.valor || 0), 0);
-
-          const receitasTotal = (transacoesData || [])
-            .filter((t) => t.obra_id === obra.id && t.tipo === "receita")
-            .reduce((sum, t) => sum + Number(t.valor || 0), 0);
-
-          return {
-            ...obra,
-            valor_contratado: Number(obra.valor_contratado || 0),
-            total_aditivos: aditivosTotal,
-            total_despesas: despesasTotal,
-            total_receitas: receitasTotal,
-          };
-        });
-
-        setObras(obrasComMetricas);
-      } catch (err) {
-        console.error("Erro ao carregar lista de obras:", err);
-      } finally {
+      if (!obrasData || obrasData.length === 0) {
+        setObras([]);
         setLoading(false);
+        return;
       }
+
+      const obraIds = obrasData.map((o) => o.id);
+
+      // 2. Busca aditivos de todas as obras
+      const { data: aditivosData } = await supabase
+        .from("obra_aditivos")
+        .select("obra_id, valor")
+        .in("obra_id", obraIds);
+
+      // 3. Busca transações de todas as obras
+      const { data: transacoesData } = await supabase
+        .from("obra_transacoes")
+        .select("obra_id, tipo, valor, status_pagamento")
+        .in("obra_id", obraIds);
+
+      // Consolida métricas 360 por obra
+      const obrasComMetricas: ObraItem[] = obrasData.map((obra) => {
+        const aditivosTotal = (aditivosData || [])
+          .filter((a) => a.obra_id === obra.id)
+          .reduce((sum, a) => sum + Number(a.valor || 0), 0);
+
+        const despesasTotal = (transacoesData || [])
+          .filter((t) => t.obra_id === obra.id && t.tipo === "despesa")
+          .reduce((sum, t) => sum + Number(t.valor || 0), 0);
+
+        const receitasTotal = (transacoesData || [])
+          .filter((t) => t.obra_id === obra.id && t.tipo === "receita")
+          .reduce((sum, t) => sum + Number(t.valor || 0), 0);
+
+        return {
+          ...obra,
+          valor_contratado: Number(obra.valor_contratado || 0),
+          total_aditivos: aditivosTotal,
+          total_despesas: despesasTotal,
+          total_receitas: receitasTotal,
+        };
+      });
+
+      setObras(obrasComMetricas);
+    } catch (err) {
+      console.error("Erro ao carregar lista de obras:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadObrasAndFinances();
+  }, [selectedCompany]);
+
+  function handleOpenEditObra(obra: ObraItem) {
+    setEditingObra(obra);
+    setEditNome(obra.nome || "");
+    setEditCliente(obra.cliente || "");
+    setEditEndereco(obra.endereco || "");
+    setEditStatus(obra.status || "ativa");
+    setEditValor(String(obra.valor_contratado || ""));
+    setEditDataInicio(obra.data_inicio || "");
+    setEditDataFim(obra.data_fim_previsto || "");
+    setEditObservacoes(obra.observacoes || "");
+  }
+
+  async function handleSaveEditObra(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingObra || !selectedCompany?.id) return;
+
+    if (!editNome.trim()) {
+      alert("Informe o nome da obra.");
+      return;
+    }
+    if (!editCliente.trim()) {
+      alert("Informe o nome do cliente.");
+      return;
     }
 
-    loadObrasAndFinances();
-  }, [selectedCompany, supabase]);
+    const valorNum = parseFloat(editValor.replace(",", ".")) || 0;
+
+    setSavingObra(true);
+    try {
+      const { error } = await supabase
+        .from("obras")
+        .update({
+          nome: editNome.trim(),
+          cliente: editCliente.trim(),
+          endereco: editEndereco.trim() || null,
+          status: editStatus,
+          valor_contratado: valorNum,
+          data_inicio: editDataInicio || new Date().toISOString().split("T")[0],
+          data_fim_previsto: editDataFim || null,
+          observacoes: editObservacoes.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", editingObra.id)
+        .eq("company_id", selectedCompany.id);
+
+      if (error) throw error;
+
+      setEditingObra(null);
+      await loadObrasAndFinances();
+    } catch (err: any) {
+      alert(err.message || "Erro ao salvar alterações da obra.");
+    } finally {
+      setSavingObra(false);
+    }
+  }
+
+  async function handleConfirmDeleteObra() {
+    if (!deletingObra || !selectedCompany?.id) return;
+    setIsDeletingObra(true);
+    try {
+      const { error } = await supabase
+        .from("obras")
+        .delete()
+        .eq("id", deletingObra.id)
+        .eq("company_id", selectedCompany.id);
+
+      if (error) throw error;
+
+      setDeletingObra(null);
+      await loadObrasAndFinances();
+    } catch (err: any) {
+      alert(err.message || "Erro ao excluir obra.");
+    } finally {
+      setIsDeletingObra(false);
+    }
+  }
 
   const filteredObras = useMemo(() => {
     return obras.filter((obra) => {
@@ -243,12 +335,30 @@ export default function ListaObrasPage() {
                     </p>
                   </div>
 
-                  <Link
-                    href={`/obras/lista/${obra.id}`}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl transition-colors self-start"
-                  >
-                    Ver Visão 360º & Aditivos →
-                  </Link>
+                  <div className="flex items-center gap-1.5 self-start flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditObra(obra)}
+                      title="Editar dados e status da obra"
+                      className="p-1.5 text-gray-500 hover:text-amber-800 hover:bg-amber-100 rounded-xl transition-all text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>✏️</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeletingObra(obra)}
+                      title="Excluir obra permanentemente"
+                      className="p-1.5 text-gray-400 hover:text-red-700 hover:bg-red-100 rounded-xl transition-all text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>🗑️</span>
+                    </button>
+                    <Link
+                      href={`/obras/lista/${obra.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl transition-colors"
+                    >
+                      Ver Visão 360º & Aditivos →
+                    </Link>
+                  </div>
                 </div>
 
                 {/* Barra de Faturamento do Cliente (% Cobrado vs Saldo a Cobrar) */}
@@ -364,6 +474,263 @@ export default function ListaObrasPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal de Edição de Obra */}
+      {editingObra && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl my-8 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <span>🏗️</span> Editar Obra / Projeto
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingObra(null)}
+                className="text-gray-400 hover:text-gray-700 text-sm font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditObra} className="space-y-4">
+              {/* Status da Obra em 4 Caixas Clicáveis */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                  Status da Obra
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus("ativa")}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                      editStatus === "ativa"
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs ring-2 ring-emerald-500/20 font-black"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>🟢</span>
+                    <span>Ativa</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus("pausada")}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                      editStatus === "pausada"
+                        ? "bg-amber-50 border-amber-500 text-amber-800 shadow-xs ring-2 ring-amber-500/20 font-black"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>🟡</span>
+                    <span>Pausada</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus("concluida")}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                      editStatus === "concluida"
+                        ? "bg-blue-50 border-blue-500 text-blue-800 shadow-xs ring-2 ring-blue-500/20 font-black"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>🔵</span>
+                    <span>Concluída</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus("cancelada")}
+                    className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                      editStatus === "cancelada"
+                        ? "bg-rose-50 border-rose-500 text-rose-800 shadow-xs ring-2 ring-rose-500/20 font-black"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span>⚪</span>
+                    <span>Cancelada</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Nome e Cliente */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Nome da Obra <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editNome}
+                    onChange={(e) => setEditNome(e.target.value)}
+                    placeholder="Ex: Reforma Cobertura Jardins"
+                    required
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Cliente <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editCliente}
+                    onChange={(e) => setEditCliente(e.target.value)}
+                    placeholder="Ex: Roberto Mendes"
+                    required
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Valor Contratado Base e Endereço */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Valor Contratado Base (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editValor}
+                    onChange={(e) => setEditValor(e.target.value)}
+                    placeholder="0,00"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Endereço
+                  </label>
+                  <input
+                    type="text"
+                    value={editEndereco}
+                    onChange={(e) => setEditEndereco(e.target.value)}
+                    placeholder="Ex: Av. Paulista, 1000 - Apto 51"
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Data Início e Previsão Término */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Data de Início
+                  </label>
+                  <input
+                    type="date"
+                    value={editDataInicio}
+                    onChange={(e) => setEditDataInicio(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                    Previsão de Conclusão
+                  </label>
+                  <input
+                    type="date"
+                    value={editDataFim}
+                    onChange={(e) => setEditDataFim(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+                  Observações
+                </label>
+                <textarea
+                  rows={2}
+                  value={editObservacoes}
+                  onChange={(e) => setEditObservacoes(e.target.value)}
+                  placeholder="Informações adicionais do contrato ou escopo..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amber-600 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingObra(null)}
+                  className="py-2.5 px-4 rounded-xl text-gray-600 hover:bg-gray-100 font-bold text-xs transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingObra}
+                  className="py-2.5 px-5 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {savingObra ? "Salvando..." : "✓ Salvar Dados da Obra"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Exclusão da Obra */}
+      {deletingObra && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 mx-auto flex items-center justify-center text-2xl">
+                ⚠️
+              </div>
+              <h3 className="text-base font-bold text-gray-900">
+                Excluir Obra Permanentemente?
+              </h3>
+              <p className="text-xs text-gray-600">
+                Você está prestes a excluir a obra <strong className="text-gray-900">{deletingObra.nome}</strong> (Cliente: {deletingObra.cliente}).
+              </p>
+              
+              <div className="bg-red-50 p-3 rounded-2xl border border-red-200 text-left space-y-1">
+                <span className="text-[11px] font-bold text-red-800 uppercase block">
+                  Atenção ao impacto:
+                </span>
+                <p className="text-xs text-red-700">
+                  • <strong>{deletingObra.total_despesas > 0 || deletingObra.total_receitas > 0 ? "Histórico financeiro ativo" : "Sem movimentações"}</strong> (Despesas: {formatBRL(deletingObra.total_despesas)} / Faturado: {formatBRL(deletingObra.total_receitas)}).
+                </p>
+                {deletingObra.total_aditivos > 0 && (
+                  <p className="text-xs text-red-700">
+                    • Contém aditivos contratuais registrados ({formatBRL(deletingObra.total_aditivos)}).
+                  </p>
+                )}
+                <p className="text-[11px] text-red-600 font-semibold mt-1">
+                  Todos os lançamentos vinculados serão apagados do banco. Essa ação NÃO pode ser desfeita.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingObra(null)}
+                disabled={isDeletingObra}
+                className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteObra}
+                disabled={isDeletingObra}
+                className="w-full py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isDeletingObra ? "Excluindo Obra..." : "Sim, Excluir Obra"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
